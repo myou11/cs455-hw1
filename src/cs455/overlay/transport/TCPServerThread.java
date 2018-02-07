@@ -24,6 +24,7 @@ public class TCPServerThread implements Runnable {
     public void run() {
         while(true) {   // true so we can continue to listen for connections
             try {
+                System.out.println("Starting TCPServerThread...");
                 /*  create a new socket with the incoming connection so we can pass it to a TCPReceiverThread
                     to handle the communications between the nodes
                  */
@@ -34,7 +35,9 @@ public class TCPServerThread implements Runnable {
                     pass the registry so we can call registry's onEvent method to modify the registeredNodes
                     in the receiver thread
                  */
-                (new Thread(new TCPReceiverThread(commSocket, node))).start();
+                //(new Thread(new TCPReceiverThread(commSocket, node))).start();
+                TCPConnection connection = new TCPConnection(commSocket, node);
+                connection.startSenderAndReceiverThreads();
             } catch(IOException ioe) {
                 System.err.println("Unable to create Socket for communication");
                 ioe.printStackTrace();

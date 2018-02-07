@@ -7,7 +7,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 
 public class TCPConnection {
-/*    private Socket socket;
+    private Socket socket;
     private Node node;
     private ArrayList<byte[]> msgQueue;
 
@@ -15,10 +15,10 @@ public class TCPConnection {
         this.socket = socket;
         this.node = node;
         this.msgQueue = new ArrayList<>();
-        startSenderAndReceiverThreads();
+        //startSenderAndReceiverThreads();
     }
 
-    private void startSenderAndReceiverThreads() {
+    public void startSenderAndReceiverThreads() {
         try {
             (new Thread(new TCPSenderThread(socket, msgQueue))).start();
             (new Thread(new TCPReceiverThread(socket, node))).start();
@@ -30,5 +30,4 @@ public class TCPConnection {
     public void sendMsg(byte[] msg) {
         msgQueue.add(msg);
     }
-    */
 }
