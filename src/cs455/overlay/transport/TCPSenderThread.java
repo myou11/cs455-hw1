@@ -2,17 +2,16 @@ package cs455.overlay.transport;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.util.ArrayList;
 
 public class TCPSenderThread implements Runnable {
-    private Socket socket;
+    private TCPConnection connection;
     private DataOutputStream dOut;
     private ArrayList<byte[]> msgQueue;
 
     public TCPSenderThread(TCPConnection connection, ArrayList<byte[]> msgQueue) throws IOException {
-        this.socket = socket;
-        this.dOut = new DataOutputStream(socket.getOutputStream());
+        this.connection = connection;
+        this.dOut = new DataOutputStream(connection.getSocket().getOutputStream());
         this.msgQueue = msgQueue;
     }
 
