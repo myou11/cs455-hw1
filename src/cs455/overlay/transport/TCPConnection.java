@@ -18,10 +18,14 @@ public class TCPConnection {
         //startSenderAndReceiverThreads();
     }
 
+    public Socket getSocket() {
+        return socket;
+    }
+
     public void startSenderAndReceiverThreads() {
         try {
-            (new Thread(new TCPSenderThread(socket, msgQueue))).start();
-            (new Thread(new TCPReceiverThread(socket, node))).start();
+            (new Thread(new TCPSenderThread(this, msgQueue))).start();
+            (new Thread(new TCPReceiverThread(this, node))).start();
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }

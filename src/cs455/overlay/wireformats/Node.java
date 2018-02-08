@@ -1,8 +1,9 @@
 package cs455.overlay.wireformats;
 
+import cs455.overlay.transport.TCPConnection;
+
 import java.io.IOException;
-import java.net.Socket;
 
 public interface Node {
-    void onEvent(Event event, Socket socket) throws IOException;
+    void onEvent(Event event, TCPConnection connection) throws IOException;
 }

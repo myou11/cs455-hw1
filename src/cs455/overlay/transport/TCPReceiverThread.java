@@ -10,13 +10,13 @@ import java.net.Socket;
 import java.net.SocketException;
 
 public class TCPReceiverThread implements Runnable {
-    private Socket socket;
+    TCPConnection connection;
     private DataInputStream dIn;
     private Node node;
 
-    public TCPReceiverThread(Socket socket, Node node) throws IOException {
-        this.socket = socket;
-        dIn = new DataInputStream(socket.getInputStream());
+    public TCPReceiverThread(TCPConnection connection, Node node) throws IOException {
+        this.connection = connection;
+        dIn = new DataInputStream(connection.getSocket().getInputStream());
         this.node = node;
     }
 
@@ -30,7 +30,8 @@ public class TCPReceiverThread implements Runnable {
         // TODO: unsure of purpose of socket != null. Seems its intention is to keep reading from the socket
         // why do this if the registry will just spawn a thread for each receipt of a msg? TODO: ASK!!!!!
         // wouldnt the thread just process the msg and then die?
-        while(socket != null) {
+        Socket connectionSocket = connection.getSocket();
+        while(connectionSocket != null) {
             try {
                 // num bytes in msg is the first 4 bytes (int) in msg
                 msgLength = dIn.readInt();
@@ -49,7 +50,7 @@ public class TCPReceiverThread implements Runnable {
                     the socket can be cached in the registry's connection cache
                  */
                 Event event = eventFactory.processMsg(msg);
-                node.onEvent(event, socket);
+                node.onEvent(event, connection);
             } catch(SocketException se) {
                 System.out.println(se.getMessage());
                 break;

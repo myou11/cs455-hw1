@@ -10,7 +10,7 @@ public class TCPSenderThread implements Runnable {
     private DataOutputStream dOut;
     private ArrayList<byte[]> msgQueue;
 
-    public TCPSenderThread(Socket socket, ArrayList<byte[]> msgQueue) throws IOException {
+    public TCPSenderThread(TCPConnection connection, ArrayList<byte[]> msgQueue) throws IOException {
         this.socket = socket;
         this.dOut = new DataOutputStream(socket.getOutputStream());
         this.msgQueue = msgQueue;

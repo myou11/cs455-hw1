@@ -2,7 +2,6 @@ package cs455.overlay.node;
 
 import cs455.overlay.transport.TCPConnection;
 import cs455.overlay.transport.TCPConnectionsCache;
-import cs455.overlay.transport.TCPSenderThread;
 import cs455.overlay.transport.TCPServerThread;
 import cs455.overlay.util.InteractiveCommandParser;
 import cs455.overlay.wireformats.*;
@@ -49,13 +48,13 @@ public class Registry implements Protocol, Node {
     }
 
     @Override
-    public void onEvent(Event event, Socket socket) throws IOException {
+    public void onEvent(Event event, TCPConnection connection) throws IOException {
         switch(event.getType()) {
             case (OVERLAY_NODE_SENDS_REGISTRATION):
-                registerNode((OverlayNodeSendsRegistration)event, socket);
+                registerNode((OverlayNodeSendsRegistration)event, connection);
                 break;
             case (OVERLAY_NODE_SENDS_DEREGISTRATION):
-                deregisterNode((OverlayNodeSendsDeregistration)event, socket);
+                deregisterNode((OverlayNodeSendsDeregistration)event, connection);
                 break;
             case (NODE_REPORTS_OVERLAY_SETUP_STATUS):
                 processOverlaySetupStatusResponse((NodeReportsOverlaySetupStatus)event);
@@ -63,7 +62,7 @@ public class Registry implements Protocol, Node {
     }
 
     // TODO: remember to make the necessary functions synchronized if they modify the connectionsCache or registeredNodes
-    private synchronized void registerNode(OverlayNodeSendsRegistration event, Socket socket) throws IOException {
+    private synchronized void registerNode(OverlayNodeSendsRegistration event, TCPConnection connection) throws IOException {
         // TODO: abstract out assigning ID to an assignID maybe?
         Random r = new Random();
         int ID = r.nextInt(128); // chooses ID between 0-127 (inclusive)
@@ -72,7 +71,7 @@ public class Registry implements Protocol, Node {
         String IPportNumStr = event.getIP() + ':' + event.getPortNum();
 
         // TODO: ADD TCPCONNECTION COMMENTS IF WORK
-        TCPConnection connection = new TCPConnection(socket, this);
+        //TCPConnection connection = new TCPConnection(socket, this);
         // TODO: CREATE METHOD TO CHECK IF VALID REGISTRATION
         if (registeredNodes.get(ID) == null && !registeredNodes.containsValue(IPportNumStr)) {
             // ID is not a duplicate and node's IP and portNum haven't been previously registered
@@ -106,13 +105,14 @@ public class Registry implements Protocol, Node {
         }*/
     }
 
-    private synchronized void deregisterNode(OverlayNodeSendsDeregistration event, Socket socket) throws IOException {
+    private synchronized void deregisterNode(OverlayNodeSendsDeregistration event, TCPConnection connection) throws IOException {
         int idToRemove = event.getAssignedID();
         String infoStr;
+        Socket connectionSocket = connection.getSocket();
 
         // if getting the node with idToRemove returns null, node doesn't exist in registry anymore, so can't deregister
         // TODO: NEED TO CHECK IF IP OF MSG NODE'S END OF SOCKET IS SAME AS IP IN MSG
-        if (socket.getInetAddress().getHostAddress().equals(event.getIP()) || registeredNodes.containsKey(idToRemove)) { // valid deregistration req
+        if (connectionSocket.getInetAddress().getHostAddress().equals(event.getIP()) || registeredNodes.containsKey(idToRemove)) { // valid deregistration req
             String removed = registeredNodes.remove(idToRemove);
             System.out.printf("Removed node with ID [%d] and value [%s] from registeredNodes\n", idToRemove, removed);
 
@@ -128,9 +128,11 @@ public class Registry implements Protocol, Node {
         // TODO: ADD TCPCONNECTION COMMENTS IF WORK
         // remove the registry's connection (socket) from the connectionsCache
         // TODO: check if this actually gets the msging nodes IP and port
-        String IPportNumStr = socket.getInetAddress().getHostAddress() + ':' + socket.getPort();
-        TCPConnection connection = connectionsCache.removeConnection(IPportNumStr);
-        connection.sendMsg(deregistrationStatus.getBytes());
+        String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
+        // TODO: COMMENT ON THIS NEW TCPCONNECTION INSTEAD OF SOCKET; THIS WAS DONE SO WE COULD SEE THE MSG QUEUE OF THE CONNECTION; OTHERWISE WE WOULD HAVE HAD TO CREATE A NEW TCPCONNECTION AND ITS MSG QUEUE WOULD BE NEW
+        // TODO: ADD THIS COMMENT EVERYWHERE ELSE WE REPLACE SOCKET WITH TCPCONNECTION TOO
+        TCPConnection removedConnection = connectionsCache.removeConnection(IPportNumStr);
+        removedConnection.sendMsg(deregistrationStatus.getBytes());
         /*try {
             String IPportNumStr = event.getIP() + ':' + event.getPortNum();
             (new Thread(new TCPSenderThread(connectionsCache.getConnection(IPportNumStr), response.getBytes()))).start();

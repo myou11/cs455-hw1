@@ -86,13 +86,13 @@ public class MessengerNode implements Protocol, Node {
     }
 
     @Override
-    public void onEvent(Event event, Socket socket) throws IOException {
+    public void onEvent(Event event, TCPConnection connection) throws IOException {
         switch(event.getType()) {
             case (REGISTRY_REPORTS_REGISTRATION_STATUS):
-                processRegistrationStatusResponse((RegistryReportsRegistrationStatus)event, socket);
+                processRegistrationStatusResponse((RegistryReportsRegistrationStatus)event, connection);
                 break;
             case (REGISTRY_REPORTS_DEREGISTRATION_STATUS):
-                processDeregistrationStatusResponse((RegistryReportsDeregistrationStatus)event, socket);
+                processDeregistrationStatusResponse((RegistryReportsDeregistrationStatus)event, connection);
                 break;
             case (REGISTRY_SENDS_NODE_MANIFEST):
                 processNodeManifest((RegistrySendsNodeManifest)event);
@@ -106,7 +106,7 @@ public class MessengerNode implements Protocol, Node {
         }
     }
 
-    private void processRegistrationStatusResponse(RegistryReportsRegistrationStatus event, Socket socket) throws IOException {
+    private void processRegistrationStatusResponse(RegistryReportsRegistrationStatus event, TCPConnection connection) throws IOException {
         if (event.getID() > -1) {
             this.ID = event.getID();
 
@@ -119,7 +119,7 @@ public class MessengerNode implements Protocol, Node {
             // TODO: didnt cache connection here bc it is already done when this msging node initiates a connec w registry.
             // TODO: also dont need to start sndr and rcvr threads for this connec since this msging node does that when it
             // TODO: first creates this connection to register itself to the registry (REFINE THESE COMMENTS)
-            System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, socket);
+            System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, connection.getSocket());
             System.out.println(event.getInfoStr());
             System.out.println("My assigned ID is: " + this.ID);
         } else { // registration failure
@@ -127,7 +127,7 @@ public class MessengerNode implements Protocol, Node {
         }
     }
 
-    private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event, Socket socket) {
+    private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event, TCPConnection connection) {
         int deregisteredID = event.getDeregisteredID();
         System.out.println(event.getInfoStr());
         System.out.printf("The deregistered ID was %d\n", deregisteredID);
@@ -362,6 +362,7 @@ public class MessengerNode implements Protocol, Node {
                 // create socket to send a registration request
                 // args[0]: registry-host | args[1]: registry-port
                 commSocket = new Socket(args[0], Integer.parseInt(args[1]));
+                System.out.printf("Sending reg req to regsitry on socket: %s\n", commSocket);
 
                 // create registration request msg
                 OverlayNodeSendsRegistration nodeRegistration = new OverlayNodeSendsRegistration(msgNode.IP, msgNode.portNum);

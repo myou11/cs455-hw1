@@ -22,9 +22,9 @@ public class TCPServerThread implements Runnable {
     }
 
     public void run() {
+        System.out.println("Starting TCPServerThread...");
         while(true) {   // true so we can continue to listen for connections
             try {
-                System.out.println("Starting TCPServerThread...");
                 /*  create a new socket with the incoming connection so we can pass it to a TCPReceiverThread
                     to handle the communications between the nodes
                  */
