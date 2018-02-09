@@ -96,7 +96,7 @@ public class Registry implements Protocol, Node {
 
         RegistryReportsRegistrationStatus registrationStatus = new RegistryReportsRegistrationStatus(ID, infoStr);
         // TODO: ADD TCPCONNECTION COMMENTS IF WORK
-        connection.sendMsg(registrationStatus.getBytes());
+        connection.getSenderThread().addMessage(registrationStatus.getBytes());
         /*try {
             System.out.printf("Socket we are using to communicate with %s: %s\n", IPportNumStr, connectionsCache.getConnection(IPportNumStr));
             (new Thread(new TCPSenderThread(connectionsCache.getConnection(IPportNumStr), response.getBytes()))).start();
@@ -132,7 +132,7 @@ public class Registry implements Protocol, Node {
         // TODO: COMMENT ON THIS NEW TCPCONNECTION INSTEAD OF SOCKET; THIS WAS DONE SO WE COULD SEE THE MSG QUEUE OF THE CONNECTION; OTHERWISE WE WOULD HAVE HAD TO CREATE A NEW TCPCONNECTION AND ITS MSG QUEUE WOULD BE NEW
         // TODO: ADD THIS COMMENT EVERYWHERE ELSE WE REPLACE SOCKET WITH TCPCONNECTION TOO
         TCPConnection removedConnection = connectionsCache.removeConnection(IPportNumStr);
-        removedConnection.sendMsg(deregistrationStatus.getBytes());
+        removedConnection.getSenderThread().addMessage(deregistrationStatus.getBytes());
         /*try {
             String IPportNumStr = event.getIP() + ':' + event.getPortNum();
             (new Thread(new TCPSenderThread(connectionsCache.getConnection(IPportNumStr), response.getBytes()))).start();
@@ -146,7 +146,8 @@ public class Registry implements Protocol, Node {
         if (event.getStatus() > -1) {
             System.out.println(event.getInfoStr());
             ++numNodesEstablishedConnections;
-        }
+        } else if (numNodesEstablishedConnections == registeredNodes.size())
+            System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
         else
             System.out.println("Not all nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
     }

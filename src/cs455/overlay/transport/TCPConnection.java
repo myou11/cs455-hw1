@@ -4,34 +4,30 @@ import cs455.overlay.wireformats.Node;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 
 public class TCPConnection {
     private Socket socket;
     private Node node;
-    private ArrayList<byte[]> msgQueue;
+    private TCPSenderThread senderThread;
+    private TCPReceiverThread receiverThread;
 
     public TCPConnection(Socket socket, Node node) throws IOException {
         this.socket = socket;
         this.node = node;
-        this.msgQueue = new ArrayList<>();
-        //startSenderAndReceiverThreads();
+        this.senderThread = new TCPSenderThread(socket);
+        this.receiverThread = new TCPReceiverThread(this, node);
     }
 
     public Socket getSocket() {
         return socket;
     }
 
-    public void startSenderAndReceiverThreads() {
-        try {
-            (new Thread(new TCPSenderThread(this, msgQueue))).start();
-            (new Thread(new TCPReceiverThread(this, node))).start();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
+    public TCPSenderThread getSenderThread() {
+        return senderThread;
     }
 
-    public void sendMsg(byte[] msg) {
-        msgQueue.add(msg);
+    public void startSenderAndReceiverThreads() {
+        (new Thread(senderThread)).start();
+        (new Thread(receiverThread)).start();
     }
 }

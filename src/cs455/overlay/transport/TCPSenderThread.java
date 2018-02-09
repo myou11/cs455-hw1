@@ -2,17 +2,22 @@ package cs455.overlay.transport;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class TCPSenderThread implements Runnable {
-    private TCPConnection connection;
     private DataOutputStream dOut;
     private ArrayList<byte[]> msgQueue;
 
-    public TCPSenderThread(TCPConnection connection, ArrayList<byte[]> msgQueue) throws IOException {
-        this.connection = connection;
-        this.dOut = new DataOutputStream(connection.getSocket().getOutputStream());
-        this.msgQueue = msgQueue;
+    public TCPSenderThread(Socket socket) throws IOException {
+        this.dOut = new DataOutputStream(socket.getOutputStream());
+        this.msgQueue = new ArrayList<>();
+    }
+
+    public synchronized void addMessage(byte[] msg) {
+        msgQueue.add(msg);
+        // let any thread know to check the msgQueue again
+        notifyAll();
     }
 
     private void sendData(byte[] msg) throws IOException {
@@ -32,13 +37,20 @@ public class TCPSenderThread implements Runnable {
         msgQueue.remove(msg);
     }
 
-    public void run() {
+    public synchronized void run() {
         System.out.println("Starting TCPSenderThread...");
         try {
             while(true) {
-                if (!msgQueue.isEmpty()) {
-                    sendData(msgQueue.get(0));
+                if (msgQueue.isEmpty()) {
+                    try {
+                        // if nothing to send, wait until we are notified to check the condition again
+                        wait();
+                    } catch (InterruptedException ie) {
+                        // do nothing if interrupted
+                    }
                 }
+                System.out.println("Sending msg");
+                sendData(msgQueue.get(0));
             }
         }
         catch (IOException e) {

@@ -87,7 +87,7 @@ public class InteractiveCommandParser {
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }*/
-                connection.sendMsg(nodeManifest.getBytes());
+                connection.getSenderThread().addMessage(nodeManifest.getBytes());
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
@@ -113,7 +113,7 @@ public class InteractiveCommandParser {
                     // get the socket associated with the IPportNumStr of the current registered node
                     String IPportNumStr = entry.getValue();
                     TCPConnection connection = registry.getConnectionsCache().getConnection(IPportNumStr);
-                    connection.sendMsg(taskInitiate.getBytes());
+                    connection.getSenderThread().addMessage(taskInitiate.getBytes());
                 } catch (IOException ioe) {
                     ioe.printStackTrace();
                 }
@@ -158,7 +158,7 @@ public class InteractiveCommandParser {
         try {
             String registryIPportNumStr = msgNode.getRegistryIPportNumStr();
             TCPConnection registryConnection = msgNode.getConnectionsCache().getConnection(registryIPportNumStr);
-            registryConnection.sendMsg(nodeDeregistration.getBytes());
+            registryConnection.getSenderThread().addMessage(nodeDeregistration.getBytes());
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }

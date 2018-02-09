@@ -127,6 +127,7 @@ public class MessengerNode implements Protocol, Node {
         }
     }
 
+    // TODO: might need to change TCPConnection to socket once I get to removing the connection from the cache
     private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event, TCPConnection connection) {
         int deregisteredID = event.getDeregisteredID();
         System.out.println(event.getInfoStr());
@@ -194,7 +195,7 @@ public class MessengerNode implements Protocol, Node {
         // and started the sender and receiver threads in the processNodeRegistrationStatusResponse() above
         TCPConnection registryConnection = connectionsCache.getConnection(registryIPportNumStr);
         NodeReportsOverlaySetupStatus overlaySetupStatus = new NodeReportsOverlaySetupStatus(status, infoStr);
-        registryConnection.sendMsg(overlaySetupStatus.getBytes());
+        registryConnection.getSenderThread().addMessage(overlaySetupStatus.getBytes());
     }
 
     // finds the closest node to the given dst ID and returns the connection to it
@@ -270,7 +271,7 @@ public class MessengerNode implements Protocol, Node {
             }
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, this.ID, payload, new ArrayList<>());
-            routingConnection.sendMsg(nodeSendsData.getBytes());
+            routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         }
     }
 
@@ -299,7 +300,7 @@ public class MessengerNode implements Protocol, Node {
             }
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, srcID, payload, routingTrace);
-            routingConnection.sendMsg(nodeSendsData.getBytes());
+            routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         } else {
             // dst is not in routing table; choose closest node
             routingConnection = findClosestNode(dstID);
@@ -314,7 +315,7 @@ public class MessengerNode implements Protocol, Node {
             }
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, srcID, payload, routingTrace);
-            routingConnection.sendMsg(nodeSendsData.getBytes());
+            routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         }
     }
 
@@ -378,7 +379,7 @@ public class MessengerNode implements Protocol, Node {
                 msgNode.getConnectionsCache().addConnection(registryIPportNumStr, registryConnection);
                 // TODO: START SNDR AND RCVR THREADS HERE IF TCPCONNECTIONS CTOR DOESN'T WORK
                 registryConnection.startSenderAndReceiverThreads();
-                registryConnection.sendMsg(nodeRegistration.getBytes());
+                registryConnection.getSenderThread().addMessage(nodeRegistration.getBytes());
             } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
