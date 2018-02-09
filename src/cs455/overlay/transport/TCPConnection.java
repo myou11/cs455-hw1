@@ -7,13 +7,15 @@ import java.net.Socket;
 
 public class TCPConnection {
     private Socket socket;
-    private Node node;
     private TCPSenderThread senderThread;
     private TCPReceiverThread receiverThread;
 
+    /*
+        socket: used to retrieve the communications to a node
+        node: allows TCPReceiver thread to call the node's onEvent()
+     */
     public TCPConnection(Socket socket, Node node) throws IOException {
         this.socket = socket;
-        this.node = node;
         this.senderThread = new TCPSenderThread(socket);
         this.receiverThread = new TCPReceiverThread(this, node);
     }
@@ -22,6 +24,10 @@ public class TCPConnection {
         return socket;
     }
 
+    /*
+        Allows the nodes to access the sender thread for this connection
+        so msgs can be added to the sender thread's queue
+     */
     public TCPSenderThread getSenderThread() {
         return senderThread;
     }

@@ -9,6 +9,8 @@ public class TCPSenderThread implements Runnable {
     private DataOutputStream dOut;
     private ArrayList<byte[]> msgQueue;
 
+    private boolean DEBUG = false;
+
     public TCPSenderThread(Socket socket) throws IOException {
         this.dOut = new DataOutputStream(socket.getOutputStream());
         this.msgQueue = new ArrayList<>();
@@ -49,8 +51,10 @@ public class TCPSenderThread implements Runnable {
                         // do nothing if interrupted
                     }
                 }
-                System.out.println("Sending msg");
                 sendData(msgQueue.get(0));
+
+                if (DEBUG)
+                    System.out.println("Sending msg");
             }
         }
         catch (IOException e) {

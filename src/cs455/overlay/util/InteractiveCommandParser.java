@@ -4,7 +4,6 @@ import cs455.overlay.node.MessengerNode;
 import cs455.overlay.node.Registry;
 import cs455.overlay.routing.RoutingTable;
 import cs455.overlay.transport.TCPConnection;
-import cs455.overlay.transport.TCPSenderThread;
 import cs455.overlay.wireformats.Node;
 import cs455.overlay.wireformats.OverlayNodeSendsDeregistration;
 import cs455.overlay.wireformats.RegistryRequestsTaskInitiate;
@@ -15,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public class InteractiveCommandParser {
-    Node node;
+    private Node node;
 
     // node allows the command parser to know whether it is parsing
     // commands for the registry or the msging node
@@ -81,12 +80,6 @@ public class InteractiveCommandParser {
                 TCPConnection connection = registry.getConnectionsCache().getConnection(IPportNumStr);
                 ArrayList<Integer> registeredNodeIds = new ArrayList<>(registry.getRegisteredNodes().keySet());
                 RegistrySendsNodeManifest nodeManifest = new RegistrySendsNodeManifest(routingTable, registry.getRegisteredNodes().size(), registeredNodeIds);
-                // TODO: DEL BELOW TRY CATCH IF TCP CONNECTION WORKS
-            /*try {
-                (new Thread(new TCPSenderThread(socket, nodeManifest.getBytes()))).start();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }*/
                 connection.getSenderThread().addMessage(nodeManifest.getBytes());
             } catch (IOException ioe) {
                 ioe.printStackTrace();
@@ -151,9 +144,11 @@ public class InteractiveCommandParser {
         // use this socket to send a deregistration req
         MessengerNode msgNode = ((MessengerNode) node);
         OverlayNodeSendsDeregistration nodeDeregistration = new OverlayNodeSendsDeregistration(msgNode.getIP(), msgNode.getPortNum(), msgNode.getID());
-        // TODO: how can I send this without creating another thread? should i just create another thread (and incur the overhead, shouldn't be too much)
-        // TODO: and find the socket connected to registry and just use that thread to send a msg? probably what has to happen to send this msg
-        // TODO: pros: wont have to create another socket, new thread overhead is low (dies after it sends msg) cons: thread overhead?
+        /*
+            How can I send this without creating another thread? should i just create another thread (and incur the overhead, shouldn't be too much)
+            and find the socket connected to registry and just use that thread to send a msg? probably what has to happen to send this msg
+            pros: wont have to create another socket, new thread overhead is low (dies after it sends msg) cons: thread overhead?
+         */
         // TODO: UPDATE COMMENTS ABOUT NEW TCPCONNECTION HERE IF WORK
         try {
             String registryIPportNumStr = msgNode.getRegistryIPportNumStr();
@@ -162,14 +157,6 @@ public class InteractiveCommandParser {
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
-        // TODO: DEL LINES BELOW THIS IF TCPCONNECTION WORKS
-        /*try {
-            // first argument is the socket by which we will send the msg. we get the socket connected to the registry
-            // second argument, we get the msg that we are sending, the node deregistration request
-            (new Thread(new TCPSenderThread(msgNode.getConnectionsCache().getConnection(msgNode.getRegistryIPportNumStr()), nodeDeregistration.getBytes()))).start();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }*/
     }
 
     /* END MessengerNode COMMANDS */

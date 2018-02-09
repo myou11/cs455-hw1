@@ -13,6 +13,8 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 public class MessengerNode implements Protocol, Node {
+    private boolean DEBUG = false;
+
     private int ID;
     private String IP;
     private int portNum;
@@ -198,7 +200,24 @@ public class MessengerNode implements Protocol, Node {
         registryConnection.getSenderThread().addMessage(overlaySetupStatus.getBytes());
     }
 
+    private int selectRandomDstID() {
+        // choose a random ID from the list of all registered nodes
+        Random r = new Random();
+        // random index between 0 and registeredNodeIDs.size() - 1
+        int randIndex = r.nextInt(registeredNodeIDs.size());
+        // use randIndex to retrieve a node to send a packet to
+        int dstID = registeredNodeIDs.get(randIndex);
+
+        // ensure a node does not choose to send msgs to itself
+        while (dstID == this.ID) {
+            randIndex = r.nextInt(registeredNodeIDs.size());
+            dstID = registeredNodeIDs.get(randIndex);
+        }
+        return dstID;
+    }
+
     // finds the closest node to the given dst ID and returns the connection to it
+    // TODO: NEED TO REDO THIS TO NOT USE THE LIST OF ALL NODES IN THE SYSTEM
     private TCPConnection findClosestNode(int dstID) {
         // store connection to closest node
         TCPConnection routingConnection = null;
@@ -213,9 +232,13 @@ public class MessengerNode implements Protocol, Node {
         // after this loop, we should have the correct num hops to the dst
 
         ArrayList<Map.Entry<Integer, String>> routingTableList = new ArrayList<>(routingTable.getEntrySet());
-        int closestID = -1; // should always get overwritten in the loop since if the dstID is not in the routing table,
-        // then with the way the tbl is set up, at least one 2 entries must be before the dstID
-        // (b/c if dstID is not in table, then it is at least 3 or more hops away and 1st & 2nd entries are only 1 & 2 hops away)
+
+        /*
+            should always get overwritten in the loop since if the dstID is not in the routing table,
+            then with the way the tbl is set up, at least 2 entries must be before the dstID
+            (b/c if dstID is not in table, then it is at least 3 or more hops away and 1st & 2nd entries are only 1 & 2 hops away)
+         */
+        int closestID = -1;
         for(int entry = 0; entry < routingTableList.size(); ++entry) {
             if(Math.pow(2, entry) < numHopsToDst) {
                 closestID = routingTableList.get(entry).getKey();
@@ -225,7 +248,8 @@ public class MessengerNode implements Protocol, Node {
         }
         // after this loop, we should have the connection to the closest node w/o overshooting
 
-        //System.out.printf("Node (%d) is not in my routing table. Routing data to closest node: node (%d)\n", dstID, closestID);
+        if (DEBUG)
+            System.out.printf("Node (%d) is not in my routing table. Routing data to closest node: node (%d)\n", dstID, closestID);
 
         return routingConnection;
     }
@@ -236,39 +260,30 @@ public class MessengerNode implements Protocol, Node {
         // Begin sending msgs
         int numRounds = event.getNumPacketsToSend();
         for (int round = 0; round < numRounds; ++round) {
-            // TODO: Could abstract this out into a method that generates a dst ID to send a msg to
-            // choose a random ID from the list of all registered nodes
-            Random r = new Random();
-            // random index between 0 and registeredNodeIDs.size() - 1
-            int randIndex = r.nextInt(registeredNodeIDs.size());
-            // use randIndex to retrieve a node to send a packet to
-            int dstID = registeredNodeIDs.get(randIndex);
-
-            // ensure a node does not choose to send msgs to itself
-            while (dstID == this.ID) {
-                randIndex = r.nextInt(registeredNodeIDs.size());
-                dstID = registeredNodeIDs.get(randIndex);
-            }
+            // Choose a random node to send data to
+            int dstID = selectRandomDstID();
 
             TCPConnection routingConnection;
-            if (routingTable.contains(dstID)) {
+            if (routingTable.contains(dstID)) { // dst is in routing table
                 String IPportNumStr = routingTable.getEntry(dstID);
-                //System.out.printf("Node (%d) is in my routing table. Sending data to %s\n", dstID, IPportNumStr);
-                // send OverlayNodeSendsData msg
+
+                if (DEBUG)
+                    System.out.printf("Node (%d) is in my routing table. Sending data to %s\n", dstID, IPportNumStr);
+
+                // Retrieve the connection to the dst node
                 routingConnection = connectionsCache.getConnection(IPportNumStr);
-            } else { // ID to send packet to is not in routing table
+            } else { // dst is not in routing table
                 // find closest node to route data to
                 routingConnection = findClosestNode(dstID);
             }
 
             // Send packet to the next node with a random int (-2mil to 2mil) as the payload
+            Random r = new Random();
             int payload = r.nextInt();
 
             // update the send trackers and summations for this node
-            synchronized(trackersLock) {
-                ++this.sndTracker;
-                this.sndSummation += payload;
-            }
+            ++this.sndTracker;
+            this.sndSummation += payload;
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, this.ID, payload, new ArrayList<>());
             routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
@@ -320,7 +335,10 @@ public class MessengerNode implements Protocol, Node {
     }
 
     public static void main(String[] args) {
-        // Get the InetAddress obj that contains info about hostname and IP addr
+        // args[0]: registry IP
+        // args[1]: registry portNum
+
+        // Get the InetAddress obj for this node
         InetAddress inetInfo = null;
         try {
             inetInfo = InetAddress.getLocalHost();
@@ -328,6 +346,7 @@ public class MessengerNode implements Protocol, Node {
             System.err.println("Unable to find local host " + e);
             System.exit(1);
         }
+
         if (inetInfo != null) {
             // retrieve the hostname
             String hostname = inetInfo.getHostName();
@@ -337,70 +356,74 @@ public class MessengerNode implements Protocol, Node {
             String IP = inetInfo.getHostAddress();
             System.out.println("IP addr: " + IP);
 
-            ServerSocket nodeSocket = null;
+            ServerSocket serverSocket;
             try {
-                nodeSocket = new ServerSocket(0);
-                System.out.println("Node listening on port: " + nodeSocket.getLocalPort());
-            } catch(IOException e) {
-                System.err.println("Unable to create socket: " + e);
-                // TODO: check if we should exit on failed socket creation or not
-                System.exit(1);
-            }
+                // Create the server socket and have it listen on any port
+                serverSocket = new ServerSocket(0);
 
-            // IP and portNum of registry converted to a string
-            String registryIPportNumStr = args[0] + ':' + args[1];
+                // IP and portNum of registry converted to a string
+                String registryIPportNumStr = args[0] + ':' + args[1];
 
-            // TODO: think about putting the below code into the try block from above, so we dont need as many trys
-            // create messenger node
-            MessengerNode msgNode = new MessengerNode(IP, nodeSocket.getLocalPort(), nodeSocket, registryIPportNumStr);
+                // create messenger node
+                MessengerNode msgNode = new MessengerNode(IP, serverSocket.getLocalPort(), serverSocket, registryIPportNumStr);
 
-            // start the server of the msging node in a different thread so it can do other tasks while listening for connections
-            (new Thread(new TCPServerThread(msgNode))).start();
+                // start the server of the msging node in a different thread so it can do other tasks while listening for connections
+                (new Thread(new TCPServerThread(msgNode))).start();
+                System.out.println("Node listening on port: " + serverSocket.getLocalPort());
 
-            // create socket to initiate communications with registry
-            Socket commSocket;
-            try {
-                // create socket to send a registration request
-                // args[0]: registry-host | args[1]: registry-port
-                commSocket = new Socket(args[0], Integer.parseInt(args[1]));
-                System.out.printf("Sending reg req to regsitry on socket: %s\n", commSocket);
+                // Initiate a connection to registry to send a registration request
+                Socket commSocket = new Socket(args[0], Integer.parseInt(args[1]));
+
+                /*
+                    Create a TCPConnection to store the info about the connection
+                    This allows reuse of the created socket for subsequent communication
+                    The node is passed in b/c the TCPReceiverThread will use it to call
+                    the node's onEvent() function after reconstructing a received msg
+                 */
+                TCPConnection registryConnection = new TCPConnection(commSocket, msgNode);
+
+                /*
+                    Start the sender and receiver threads for this connection so the user
+                    can enter commands while this node is sending and receiving msgs
+                */
+                registryConnection.startSenderAndReceiverThreads();
+
+                /*
+                    Add the connection to the registry into this node's connection cache
+                    This will allow us to fetch the connection later when we need to talk
+                    to the registry again
+                 */
+                msgNode.getConnectionsCache().addConnection(registryIPportNumStr, registryConnection);
 
                 // create registration request msg
                 OverlayNodeSendsRegistration nodeRegistration = new OverlayNodeSendsRegistration(msgNode.IP, msgNode.portNum);
 
-                // start thread to send the msg, so the node can still receive
-                // any incoming requests while it sends the msg
-                // pass the marshalled nodeRegistration byte[] in as the msg to be sent
-                /*(new Thread(new TCPSenderThread(commSocket, nodeRegistration.getBytes()))).start();
-                (new Thread(new TCPReceiverThread(commSocket, msgNode))).start();
-                */
-                // TODO: UPDATE COMMENTS FOR NEW TCPCONNECTION WAY
-                TCPConnection registryConnection = new TCPConnection(commSocket, msgNode);
-                msgNode.getConnectionsCache().addConnection(registryIPportNumStr, registryConnection);
-                // TODO: START SNDR AND RCVR THREADS HERE IF TCPCONNECTIONS CTOR DOESN'T WORK
-                registryConnection.startSenderAndReceiverThreads();
+                // Retrieve the sender thread of this connection and queue a msg to be sent
                 registryConnection.getSenderThread().addMessage(nodeRegistration.getBytes());
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
+                System.out.printf("Sending reg req to regsitry on socket: %s\n", commSocket);
 
-            InteractiveCommandParser commandParser = new InteractiveCommandParser(msgNode);
-            Scanner sc = new Scanner(System.in);
-            System.out.print("Please enter a command for the registry to execute (e.g. print-counters-and-diagnostics, exit-overlay, CTRL-D to exit):\n");
-            while (sc.hasNextLine()) {
-                String command = sc.nextLine();
+                InteractiveCommandParser commandParser = new InteractiveCommandParser(msgNode);
+                Scanner sc = new Scanner(System.in);
+                System.out.print("Please enter a command for the registry to execute (e.g. 'print-counters-and-diagnostics', 'exit-overlay', 'quit' to exit):\n");
+                while (sc.hasNextLine()) {
+                    String command = sc.nextLine();
 
-                switch (command) {
-                    case ("print-counters-and-diagnostics"):
-                        commandParser.printCountersAndDiagnostics();
-                        break;
-                    case ("exit-overlay"):
-                        commandParser.exitOverlay();
-                        break;
-                    default:
-                        System.out.println("Please enter a valid command listed above");
+                    switch (command) {
+                        case ("print-counters-and-diagnostics"):
+                            commandParser.printCountersAndDiagnostics();
+                            break;
+                        case ("exit-overlay"):
+                            commandParser.exitOverlay();
+                            break;
+                        default:
+                            System.out.println("Please enter a valid command listed above");
+                    }
+                    System.out.print("Please enter a command for the registry to execute (e.g. print-counters-and-diagnostics, exit-overlay, CTRL-D to exit):\n");
                 }
-                System.out.print("Please enter a command for the registry to execute (e.g. print-counters-and-diagnostics, exit-overlay, CTRL-D to exit):\n");
+            } catch(IOException e) {
+                System.err.println("Unable to create socket: " + e);
+                // TODO: check if we should exit on failed socket creation or not
+                System.exit(1);
             }
         }
     }

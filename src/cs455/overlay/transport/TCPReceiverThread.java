@@ -15,6 +15,8 @@ public class TCPReceiverThread implements Runnable {
     private DataInputStream dIn;
     private Node node;
 
+    private boolean DEBUG = false;
+
     public TCPReceiverThread(TCPConnection connection, Node node) throws IOException {
         this.connection = connection;
         this.socket = connection.getSocket();
@@ -23,8 +25,8 @@ public class TCPReceiverThread implements Runnable {
     }
 
     public void run() {
-        //TODO: get rid of this print statement when done with this class
-        System.out.println("TCPReceiverThread running...");
+        if (DEBUG)
+            System.out.println("TCPReceiverThread running...");
         // process msgs below
 
         // num bytes in msg
@@ -60,6 +62,6 @@ public class TCPReceiverThread implements Runnable {
                 break;
             }
         }
-        System.out.println("----------\nEXITING TCPReceiverThread!!!!!\n----------");
+        System.out.println("------------------------------\nEXITING TCPReceiverThread!!!!!\n------------------------------");
     }
 }
