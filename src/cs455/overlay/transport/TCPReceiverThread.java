@@ -27,31 +27,28 @@ public class TCPReceiverThread implements Runnable {
     public void run() {
         if (DEBUG)
             System.out.println("TCPReceiverThread running...");
-        // process msgs below
 
-        // num bytes in msg
+        // Num bytes in msg
         int msgLength;
-        // TODO: unsure of purpose of socket != null. Seems its intention is to keep reading from the socket
-        // why do this if the registry will just spawn a thread for each receipt of a msg? TODO: ASK!!!!!
-        // wouldnt the thread just process the msg and then die?
+
+        // Rcv data from the socket until it is closed (i.e. NULL)
         while(socket != null) {
             try {
                 // num bytes in msg is the first 4 bytes (int) in msg
                 msgLength = dIn.readInt();
+
                 // create byte[] to hold the reading of msg
                 byte[] msg = new byte[msgLength];
+
                 // read whole msg into the created byte[]
                 dIn.readFully(msg, 0, msgLength);
 
-                // create Event Factory to handle the processing of msgs
+                // Create Event Factory to handle the processing of msgs (processMsg)
+                /*  processMsg will unmarshall the msg based on the msg type and return an appropriate Event obj.
+                    Pass in the connection being used to communicate with the msging node b/c we don't want to
+                    create a connection-per-message. The node is passed in so the methods, in onEvent(), can
+                    modify the appropriate fields in the node.  */
                 EventFactory eventFactory = new EventFactory();
-                /*  processMsg will unmarshall the msg based on the msg type
-                    and return an appropriate Event obj
-                    Have to pass in the socket being used to communicate with msging node
-                    because we don't want to create another socket for sending a response msg
-                    The node is passed in because in the case that it is a registration request,
-                    the socket can be cached in the registry's connection cache
-                 */
                 Event event = eventFactory.processMsg(msg);
                 node.onEvent(event, connection);
             } catch(SocketException se) {

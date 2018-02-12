@@ -110,26 +110,22 @@ public class MessengerNode implements Protocol, Node {
 
     private void processRegistrationStatusResponse(RegistryReportsRegistrationStatus event, TCPConnection connection) throws IOException {
         if (event.getID() > -1) {
+            /*  Did not cache the connection with the registry or start the sndr and rcvr threads here b/c it is already
+                done when this msging node initiates a connection w/ the registry.  */
+
+            // store the ID registry assigned this node
             this.ID = event.getID();
 
-            // Cache the socket connected to the registry
-            // Cached this only if successfully registered, otherwise no need to cache connection to registry
-            // TODO: UPDATE THIS COMMENT TO REFLECT THE NEW TCP CONNECTION CHANGES
-            // TCPConnection connection = connectionsCache.getConnection(registryIPportNumStr);
-            // TODO: DIDN'T START THE SENDER AND RECEIVER THREADS HERE BECAUSE I DID IT IN THE TCPCONNECTION CTOR; IF IT DOESN'T WORK, START IT HERE
-            // connectionsCache.addConnection(registryIPportNumStr, connection);
-            // TODO: didnt cache connection here bc it is already done when this msging node initiates a connec w registry.
-            // TODO: also dont need to start sndr and rcvr threads for this connec since this msging node does that when it
-            // TODO: first creates this connection to register itself to the registry (REFINE THESE COMMENTS)
-            System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, connection.getSocket());
-            System.out.println(event.getInfoStr());
-            System.out.println("My assigned ID is: " + this.ID);
+            if (DEBUG) {
+                System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, connection.getSocket());
+                System.out.println(event.getInfoStr());
+                System.out.println("My assigned ID is: " + this.ID);
+            }
         } else { // registration failure
             System.out.println(event.getInfoStr());
         }
     }
 
-    // TODO: might need to change TCPConnection to socket once I get to removing the connection from the cache
     private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event, TCPConnection connection) {
         int deregisteredID = event.getDeregisteredID();
         System.out.println(event.getInfoStr());
@@ -143,19 +139,27 @@ public class MessengerNode implements Protocol, Node {
         System.out.println("Uncached connection to Registry");
     }
 
+    // TODO: Could pass in a TCPConnection and use that as the registry connection instead of retrieving the registry connection below
+    // this would work because only the receiver thread on the connection between this node and the registry would rcv this msg
     private void processNodeManifest(RegistrySendsNodeManifest event) throws IOException {
         routingTable = event.getRoutingTable();
 
-        // Print information about the routing table received
-        System.out.println("Received node manifest from registry");
-        System.out.printf("Routing table size: %d\nRouting table:\n", routingTable.size());
-        ArrayList<Integer> routingTableIDs = routingTable.getKeys();
-        for (int i = 0; i < routingTable.size(); ++i) {
-            System.out.printf("Entry %d: %s\n", i+1, routingTableIDs.get(i));
+        if (DEBUG) {
+            // Print information about the routing table received
+            System.out.println("Received node manifest from registry");
+            System.out.printf("Routing table size: %d\nRouting table:\n", routingTable.size());
+            ArrayList<Integer> routingTableIDs = routingTable.getKeys();
+            for (int i = 0; i < routingTable.size(); ++i) {
+                System.out.printf("Entry %d: %s\n", i + 1, routingTableIDs.get(i));
+            }
         }
 
+        // Store the list of all nodes in the system so this node can use it later to choose a random node to send data to
         registeredNodeIDs = event.getRegisteredNodeIDs();
-        System.out.printf("Nodes in the system: %s\n", Arrays.toString(registeredNodeIDs.toArray()));
+
+        if (DEBUG) {
+            System.out.printf("Nodes in the system: %s\n", Arrays.toString(registeredNodeIDs.toArray()));
+        }
 
         // if this ever becomes false, it means this node was not able to establish connections to all nodes in its routing table
         boolean connectionsEstablished = true;
@@ -170,9 +174,9 @@ public class MessengerNode implements Protocol, Node {
                 TCPConnection connection = new TCPConnection(socket, this);
                 connectionsCache.addConnection(entry.getValue(), connection);
                 // TODO: refine comments here
-                // the rcvr and sndr thread for this node's side of the connection (pipe)
-                // when the other node receives the connection request from the socket above,
-                // it will start its own sndr and rcvr threads for its end of the pipe
+                // The rcvr and sndr thread for this node's side of the connection (pipe).
+                // When the other node receives the connection request from this node,
+                // they will start its their own sndr and rcvr threads for their end of the pipe
                 connection.startSenderAndReceiverThreads();
             } catch(IOException ioe) {
                 connectionsEstablished = false;
@@ -191,10 +195,9 @@ public class MessengerNode implements Protocol, Node {
             status = -1;
             infoStr = String.format("Messaging Node (%d) failed to establish connections to messaging nodes in its routing table", this.ID);
         }
-        // TODO: MAKE SURE THIS IS COMMENTED THOROUGHLY WITH NEW TCP CONNECTION CHANGES; UPDATE COMMENTS WITH NEW CTOR START THREADS
-        // registryConnection's sender and receiver threads should have been started when the registry confirmed
-        // this node's registration. after confirming registration, this node should have cached the connection
-        // and started the sender and receiver threads in the processNodeRegistrationStatusResponse() above
+        /*  registryConnection's sender and receiver threads should have been started when initiating connections
+            with the registryAfter confirming registration, this node should have cached the connection
+            and started the sender and receiver threads in the processNodeRegistrationStatusResponse() above  */
         TCPConnection registryConnection = connectionsCache.getConnection(registryIPportNumStr);
         NodeReportsOverlaySetupStatus overlaySetupStatus = new NodeReportsOverlaySetupStatus(status, infoStr);
         registryConnection.getSenderThread().addMessage(overlaySetupStatus.getBytes());
@@ -281,7 +284,11 @@ public class MessengerNode implements Protocol, Node {
             Random r = new Random();
             int payload = r.nextInt();
 
-            // update the send trackers and summations for this node
+            /*  Update the send trackers and summations for this node.
+                Don't need to sync this because only one thread is sending the messages.
+                This is different from the relay counter because only this node's sender thread
+                can send messages, whereas many of this node's receiver threads could be relaying
+                messages at the same time  */
             ++this.sndTracker;
             this.sndSummation += payload;
 
@@ -310,6 +317,8 @@ public class MessengerNode implements Protocol, Node {
             // dst is in routing table
             routingConnection = connectionsCache.getConnection(routingTable.getEntry(dstID));
 
+            /*  Many receiver threads could be relaying messages from multiple connections at once
+                Only allow one thread at a time to modify the relayTracker  */
             synchronized(trackersLock) {
                 ++this.relayTracker;
             }

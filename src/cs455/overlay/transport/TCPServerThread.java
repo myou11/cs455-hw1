@@ -25,10 +25,8 @@ public class TCPServerThread implements Runnable {
         System.out.println("Starting TCPServerThread...");
         while(true) { // true so we can continue to listen for connections
             try {
-                /*
-                    create a new socket with the incoming connection so we can pass it to
-                    a TCPConnection to handle the communications between the nodes
-                 */
+                /*  create a new socket with the incoming connection so we can pass it to
+                    a TCPConnection to handle the communications between the nodes  */
                 Socket commSocket = serverSocket.accept();
                 TCPConnection connection = new TCPConnection(commSocket, node);
                 connection.startSenderAndReceiverThreads();

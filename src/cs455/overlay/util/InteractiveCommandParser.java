@@ -14,10 +14,11 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public class InteractiveCommandParser {
+    private boolean DEBUG = true;
+
+    // node allows the command parser to know whether it is parsing commands for the registry or the msging node
     private Node node;
 
-    // node allows the command parser to know whether it is parsing
-    // commands for the registry or the msging node
     public InteractiveCommandParser(Node node) {
         this.node = node;
     }
@@ -66,15 +67,14 @@ public class InteractiveCommandParser {
                 int ID = registeredNodesList.get(indexAtHopsAway).getKey();
                 String IPportNumStr = registeredNodesList.get(indexAtHopsAway).getValue();
                 routingTable.addRoutingEntry(ID, IPportNumStr);
-                // below is for seeing the IDs in each routing tbl. easier to see which nodes in which routing tbls and to spot if a node is in its own tbl.
                 //routingTable[entry] = registeredNodesList.get(indexAtHopsAway).getKey().toString();
             }
-            System.out.printf("Routing table for node %d is:\n%s", registeredNodesList.get(nodeIndex).getKey(), routingTable);
 
-            // get the IPportNumStr associated with this node and use that to retrieve the socket connected to this node
-            // TODO: DEL BELOW LINE IF TCPCONNECTION WORKS
-            // Socket socket = (registry.getConnectionsCache().getConnection(registeredNodesList.get(nodeIndex).getValue()));
-            // TODO: UPDATE WITH NEW TCPCONNECTION COMMENTS
+            // Look at IDs in each routing tbl. Easier to see which nodes in which routing tbls and to spot if a node is in its own tbl.
+            if (DEBUG)
+                System.out.printf("Routing table for node %d is:\n%s", registeredNodesList.get(nodeIndex).getKey(), routingTable);
+
+            /*  Retrieve the connection to the current node and send it its routing table and info about all nodes in the system  */
             try {
                 String IPportNumStr = registeredNodesList.get(nodeIndex).getValue();
                 TCPConnection connection = registry.getConnectionsCache().getConnection(IPportNumStr);
@@ -88,11 +88,13 @@ public class InteractiveCommandParser {
     }
 
     // list-routing-tables
+    // Info about routing tbls of each node
     public void listRoutingTables() {
         System.out.printf("Executing list-routing-tables...\n");
     }
 
     // start number-of-messages (e.g. start 25000)
+    // Send all nodes a request to start sending number-of-messages to random nodes in the system
     public void start(int numMessages) {
         System.out.printf("Executing start %d...\n", numMessages);
 
@@ -102,22 +104,13 @@ public class InteractiveCommandParser {
             RegistryRequestsTaskInitiate taskInitiate = new RegistryRequestsTaskInitiate(numMessages);
             for (Map.Entry<Integer, String> entry : registry.getRegisteredNodes().entrySet()) {
                 try {
-                    // TODO: UPDATE COMMENTS IF TCPCONNECTION WORKS
-                    // get the socket associated with the IPportNumStr of the current registered node
+                    // get the connection associated with the IPportNumStr of the current registered node
                     String IPportNumStr = entry.getValue();
                     TCPConnection connection = registry.getConnectionsCache().getConnection(IPportNumStr);
                     connection.getSenderThread().addMessage(taskInitiate.getBytes());
                 } catch (IOException ioe) {
                     ioe.printStackTrace();
                 }
-                // TODO: DEL BELOW LINES IF TCPCONNECTION WORKS
-                /*Socket socket = registry.getConnectionsCache().getConnection(entry.getValue());
-                try {
-                    // send the task initiate request to the registered node
-                    (new Thread(new TCPSenderThread(socket, taskInitiate.getBytes()))).start();
-                } catch (IOException ioe) {
-                    ioe.printStackTrace();
-                }*/
             }
         } else {
             System.out.println("Not all nodes have successfully established connections with messaging nodes in their routing tables yet");
@@ -128,6 +121,7 @@ public class InteractiveCommandParser {
     /* BEGIN MessengerNode COMMANDS */
 
     // print-counters-and-diagnostics
+    // Info about the counters and trackers of a msging node
     public void printCountersAndDiagnostics() {
         System.out.printf("Executing print-counters-and-diagnostics...\n");
 
@@ -140,16 +134,11 @@ public class InteractiveCommandParser {
     // exit-overlay
     public void exitOverlay() {
         System.out.printf("Executing exit-overlay...\n");
-        // look in msging node's TCPConnectionCache for the socket that is connected to the registry
-        // use this socket to send a deregistration req
+
         MessengerNode msgNode = ((MessengerNode) node);
         OverlayNodeSendsDeregistration nodeDeregistration = new OverlayNodeSendsDeregistration(msgNode.getIP(), msgNode.getPortNum(), msgNode.getID());
-        /*
-            How can I send this without creating another thread? should i just create another thread (and incur the overhead, shouldn't be too much)
-            and find the socket connected to registry and just use that thread to send a msg? probably what has to happen to send this msg
-            pros: wont have to create another socket, new thread overhead is low (dies after it sends msg) cons: thread overhead?
-         */
-        // TODO: UPDATE COMMENTS ABOUT NEW TCPCONNECTION HERE IF WORK
+
+        // Retrieve connection to registry and send a deregistration request
         try {
             String registryIPportNumStr = msgNode.getRegistryIPportNumStr();
             TCPConnection registryConnection = msgNode.getConnectionsCache().getConnection(registryIPportNumStr);

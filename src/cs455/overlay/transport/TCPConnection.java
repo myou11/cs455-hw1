@@ -10,10 +10,8 @@ public class TCPConnection {
     private TCPSenderThread senderThread;
     private TCPReceiverThread receiverThread;
 
-    /*
-        socket: used to retrieve the communications to a node
-        node: allows TCPReceiver thread to call the node's onEvent()
-     */
+    /*  socket: used to retrieve the communications to a node
+        node: allows TCPReceiver thread to call the node's onEvent()  */
     public TCPConnection(Socket socket, Node node) throws IOException {
         this.socket = socket;
         this.senderThread = new TCPSenderThread(socket);
@@ -24,10 +22,8 @@ public class TCPConnection {
         return socket;
     }
 
-    /*
-        Allows the nodes to access the sender thread for this connection
-        so msgs can be added to the sender thread's queue
-     */
+    /*  Allows the nodes to access the sender thread for this connection
+        so msgs can be added to the sender thread's queue  */
     public TCPSenderThread getSenderThread() {
         return senderThread;
     }
