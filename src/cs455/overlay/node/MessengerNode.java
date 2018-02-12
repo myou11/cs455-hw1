@@ -234,11 +234,9 @@ public class MessengerNode implements Protocol, Node {
 
         ArrayList<Map.Entry<Integer, String>> routingTableList = new ArrayList<>(routingTable.getEntrySet());
 
-        /*
-            should always get overwritten in the loop since if the dstID is not in the routing table,
+        /*  Should always get overwritten in the loop since if the dstID is not in the routing table,
             then with the way the tbl is set up, at least 2 entries must be before the dstID
-            (b/c if dstID is not in table, then it is at least 3 or more hops away and 1st & 2nd entries are only 1 & 2 hops away)
-         */
+            (b/c if dstID is not in table, then it is at least 3 or more hops away and 1st & 2nd entries are only 1 & 2 hops away)  */
         int closestID = -1;
         for(int entry = 0; entry < routingTableList.size(); ++entry) {
             if(Math.pow(2, entry) < numHopsToDst) {
@@ -381,25 +379,19 @@ public class MessengerNode implements Protocol, Node {
                 // Initiate a connection to registry to send a registration request
                 Socket commSocket = new Socket(args[0], Integer.parseInt(args[1]));
 
-                /*
-                    Create a TCPConnection to store the info about the connection
+                /*  Create a TCPConnection to store the info about the connection
                     This allows reuse of the created socket for subsequent communication
                     The node is passed in b/c the TCPReceiverThread will use it to call
-                    the node's onEvent() function after reconstructing a received msg
-                 */
+                    the node's onEvent() function after reconstructing a received msg  */
                 TCPConnection registryConnection = new TCPConnection(commSocket, msgNode);
 
-                /*
-                    Start the sender and receiver threads for this connection so the user
-                    can enter commands while this node is sending and receiving msgs
-                */
+                /*  Start the sender and receiver threads for this connection so the user
+                    can enter commands while this node is sending and receiving msgs  */
                 registryConnection.startSenderAndReceiverThreads();
 
-                /*
-                    Add the connection to the registry into this node's connection cache
+                /*  Add the connection to the registry into this node's connection cache
                     This will allow us to fetch the connection later when we need to talk
-                    to the registry again
-                 */
+                    to the registry again  */
                 msgNode.getConnectionsCache().addConnection(registryIPportNumStr, registryConnection);
 
                 // create registration request msg
