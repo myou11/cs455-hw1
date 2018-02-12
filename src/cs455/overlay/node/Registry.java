@@ -163,7 +163,6 @@ public class Registry implements Protocol, Node {
                     commandParser.setupOverlay(3);
                     break;
                 }
-                // TODO: SHOULD WE BE ABLE TO HANDLE THE CASE WHERE size < 3 IS CHOSEN? OR IS 3 THE MIN NUM OF NODES THAT MUST BE IN ROUTING TABLE? ASK
                 commandParser.setupOverlay(Integer.parseInt(command[1]));
                 break;
             case ("list-routing-tables"):

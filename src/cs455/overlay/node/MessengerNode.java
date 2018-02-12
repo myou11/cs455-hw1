@@ -169,14 +169,12 @@ public class MessengerNode implements Protocol, Node {
             try {
                 String[] IPportNumArr = entry.getValue().split(":");
                 Socket socket = new Socket(IPportNumArr[0], Integer.parseInt(IPportNumArr[1]));
-                // TODO: COMMENT ABOUT THE NEW TCPCONNECTION HERE; UNCOMMENT THE startSenderAndReceiverThreads() BELOW IF CTOR CALL DOESN'T WORK
                 // connection to a node in the routing table
                 TCPConnection connection = new TCPConnection(socket, this);
                 connectionsCache.addConnection(entry.getValue(), connection);
-                // TODO: refine comments here
-                // The rcvr and sndr thread for this node's side of the connection (pipe).
-                // When the other node receives the connection request from this node,
-                // they will start its their own sndr and rcvr threads for their end of the pipe
+                /*  The rcvr and sndr thread for this node's side of the connection (pipe).
+                    When the other node receives the connection request from this node,
+                    they will start its their own sndr and rcvr threads for their end of the pipe  */
                 connection.startSenderAndReceiverThreads();
             } catch(IOException ioe) {
                 connectionsEstablished = false;
