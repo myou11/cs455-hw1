@@ -4,31 +4,32 @@ import cs455.overlay.wireformats.Node;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 
 public class TCPConnection {
-/*    private Socket socket;
-    private Node node;
-    private ArrayList<byte[]> msgQueue;
+    private Socket socket;
+    private TCPSenderThread senderThread;
+    private TCPReceiverThread receiverThread;
 
+    /*  socket: used to retrieve the communications to a node
+        node: allows TCPReceiver thread to call the node's onEvent()  */
     public TCPConnection(Socket socket, Node node) throws IOException {
         this.socket = socket;
-        this.node = node;
-        this.msgQueue = new ArrayList<>();
-        startSenderAndReceiverThreads();
+        this.senderThread = new TCPSenderThread(socket);
+        this.receiverThread = new TCPReceiverThread(this, node);
     }
 
-    private void startSenderAndReceiverThreads() {
-        try {
-            (new Thread(new TCPSenderThread(socket, msgQueue))).start();
-            (new Thread(new TCPReceiverThread(socket, node))).start();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
+    public Socket getSocket() {
+        return socket;
     }
 
-    public void sendMsg(byte[] msg) {
-        msgQueue.add(msg);
+    /*  Allows the nodes to access the sender thread for this connection
+        so msgs can be added to the sender thread's queue  */
+    public TCPSenderThread getSenderThread() {
+        return senderThread;
     }
-    */
+
+    public void startSenderAndReceiverThreads() {
+        (new Thread(senderThread)).start();
+        (new Thread(receiverThread)).start();
+    }
 }

@@ -13,7 +13,7 @@ public class TCPServerThread implements Runnable {
     private Node node;
 
     public TCPServerThread(Node node) {
-        // Registry and MsgingNode each have their own serverSockets, need to typecast the node to be able to call getServerSocket()
+        // Registry and MsgingNode each have their own serverSockets, typecast the node to call getServerSocket()
         if (node instanceof Registry)
             this.serverSocket = ((Registry) node).getServerSocket();
         else
@@ -22,19 +22,14 @@ public class TCPServerThread implements Runnable {
     }
 
     public void run() {
-        while(true) {   // true so we can continue to listen for connections
+        System.out.println("Starting TCPServerThread...");
+        while(true) { // true so we can continue to listen for connections
             try {
-                /*  create a new socket with the incoming connection so we can pass it to a TCPReceiverThread
-                    to handle the communications between the nodes
-                 */
+                /*  create a new socket with the incoming connection so we can pass it to
+                    a TCPConnection to handle the communications between the nodes  */
                 Socket commSocket = serverSocket.accept();
-
-                /*  pass the socket to the thread so it can retrieve the communications being sent to it
-                    while the server continues to listen for incoming connections.
-                    pass the registry so we can call registry's onEvent method to modify the registeredNodes
-                    in the receiver thread
-                 */
-                (new Thread(new TCPReceiverThread(commSocket, node))).start();
+                TCPConnection connection = new TCPConnection(commSocket, node);
+                connection.startSenderAndReceiverThreads();
             } catch(IOException ioe) {
                 System.err.println("Unable to create Socket for communication");
                 ioe.printStackTrace();
