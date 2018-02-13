@@ -15,7 +15,7 @@ public class TCPReceiverThread implements Runnable {
     private DataInputStream dIn;
     private Node node;
 
-    private boolean DEBUG = false;
+    private boolean DEBUG = true;
 
     public TCPReceiverThread(TCPConnection connection, Node node) throws IOException {
         this.connection = connection;

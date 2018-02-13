@@ -13,7 +13,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 public class MessengerNode implements Protocol, Node {
-    private boolean DEBUG = false;
+    private boolean DEBUG = true;
 
     private int ID;
     private String IP;
@@ -97,10 +97,10 @@ public class MessengerNode implements Protocol, Node {
                 processDeregistrationStatusResponse((RegistryReportsDeregistrationStatus)event, connection);
                 break;
             case (REGISTRY_SENDS_NODE_MANIFEST):
-                processNodeManifest((RegistrySendsNodeManifest)event);
+                processNodeManifest((RegistrySendsNodeManifest)event, connection);
                 break;
             case (REGISTRY_REQUESTS_TASK_INITIATE):
-                processTaskInitiate((RegistryRequestsTaskInitiate)event);
+                processTaskInitiate((RegistryRequestsTaskInitiate)event, connection);
                 break;
             case (OVERLAY_NODE_SENDS_DATA):
                 processNodeSendsData((OverlayNodeSendsData)event);
@@ -141,7 +141,8 @@ public class MessengerNode implements Protocol, Node {
 
     // TODO: Could pass in a TCPConnection and use that as the registry connection instead of retrieving the registry connection below
     // this would work because only the receiver thread on the connection between this node and the registry would rcv this msg
-    private void processNodeManifest(RegistrySendsNodeManifest event) throws IOException {
+    // connection is the connection to the registry, use that to send msg back to registry
+    private void processNodeManifest(RegistrySendsNodeManifest event, TCPConnection connection) throws IOException {
         routingTable = event.getRoutingTable();
 
         if (DEBUG) {
@@ -170,12 +171,12 @@ public class MessengerNode implements Protocol, Node {
                 String[] IPportNumArr = entry.getValue().split(":");
                 Socket socket = new Socket(IPportNumArr[0], Integer.parseInt(IPportNumArr[1]));
                 // connection to a node in the routing table
-                TCPConnection connection = new TCPConnection(socket, this);
-                connectionsCache.addConnection(entry.getValue(), connection);
+                TCPConnection routingConnection = new TCPConnection(socket, this);
+                connectionsCache.addConnection(entry.getValue(), routingConnection);
                 /*  The rcvr and sndr thread for this node's side of the connection (pipe).
                     When the other node receives the connection request from this node,
                     they will start its their own sndr and rcvr threads for their end of the pipe  */
-                connection.startSenderAndReceiverThreads();
+                routingConnection.startSenderAndReceiverThreads();
             } catch(IOException ioe) {
                 connectionsEstablished = false;
                 break;
@@ -194,11 +195,10 @@ public class MessengerNode implements Protocol, Node {
             infoStr = String.format("Messaging Node (%d) failed to establish connections to messaging nodes in its routing table", this.ID);
         }
         /*  registryConnection's sender and receiver threads should have been started when initiating connections
-            with the registryAfter confirming registration, this node should have cached the connection
+            with the registry. After confirming registration, this node should have cached the connection
             and started the sender and receiver threads in the processNodeRegistrationStatusResponse() above  */
-        TCPConnection registryConnection = connectionsCache.getConnection(registryIPportNumStr);
         NodeReportsOverlaySetupStatus overlaySetupStatus = new NodeReportsOverlaySetupStatus(status, infoStr);
-        registryConnection.getSenderThread().addMessage(overlaySetupStatus.getBytes());
+        connection.getSenderThread().addMessage(overlaySetupStatus.getBytes());
     }
 
     private int selectRandomDstID() {
@@ -253,7 +253,7 @@ public class MessengerNode implements Protocol, Node {
         return routingConnection;
     }
 
-    private void processTaskInitiate(RegistryRequestsTaskInitiate event) throws IOException {
+    private void processTaskInitiate(RegistryRequestsTaskInitiate event, TCPConnection connection) throws IOException {
         System.out.printf("Task initiate received. Starting to send %d packets\n", event.getNumPacketsToSend());
 
         // Begin sending msgs
@@ -291,6 +291,10 @@ public class MessengerNode implements Protocol, Node {
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, this.ID, payload, new ArrayList<>());
             routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         }
+
+        // Done sending messages, so send task finished message to registry
+        OverlayNodeReportsTaskFinished taskFinished = new OverlayNodeReportsTaskFinished(this.IP, this.portNum, this.ID);
+        connection.getSenderThread().addMessage(taskFinished.getBytes());
     }
 
     private void processNodeSendsData(OverlayNodeSendsData event) throws IOException {

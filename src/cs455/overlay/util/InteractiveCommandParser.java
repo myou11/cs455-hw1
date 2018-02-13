@@ -49,6 +49,10 @@ public class InteractiveCommandParser {
 
         Registry registry = (Registry) node;
 
+        /*  Routing of msgs will deal only with the nodes that are registered at the
+            time of setup-overlay being called  */
+        registry.setNumNodesRegistered(registry.getRegisteredNodes().size());
+
         // Transfer the entries from the HashMap into an ArrayList for faster iteration
         ArrayList<Map.Entry<Integer, String>> registeredNodesList = new ArrayList<>(registry.getRegisteredNodes().entrySet());
 

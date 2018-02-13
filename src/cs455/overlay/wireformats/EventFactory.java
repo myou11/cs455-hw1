@@ -148,6 +148,23 @@ public class EventFactory implements Protocol {
     }
 
     // registry will use this
+    private Event getTaskFinished(DataInputStream dIn) throws IOException {
+        // IP addr
+        int IPlength = dIn.readInt();
+        byte[] IPbytes = new byte[IPlength];
+        dIn.readFully(IPbytes);
+        String IP = new String(IPbytes);
+
+        // portNum
+        int portNum = dIn.readInt();
+
+        // nodeID
+        int nodeID = dIn.readInt();
+
+        return new OverlayNodeReportsTaskFinished(IP, portNum, nodeID);
+    }
+
+    // registry will use this
     public Event processMsg(byte[] msg) throws IOException {
         ByteArrayInputStream baInStream = new ByteArrayInputStream(msg);
         DataInputStream dIn = new DataInputStream(new BufferedInputStream(baInStream));
@@ -173,6 +190,8 @@ public class EventFactory implements Protocol {
                 return getTaskInitiate(dIn);
             case(OVERLAY_NODE_SENDS_DATA):
                 return getNodeSendsData(dIn);
+            case(OVERLAY_NODE_REPORTS_TASK_FINISHED):
+                return getTaskFinished(dIn);
         }
 
         // close the streams

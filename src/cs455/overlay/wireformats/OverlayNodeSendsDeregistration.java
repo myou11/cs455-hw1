@@ -8,12 +8,12 @@ public class OverlayNodeSendsDeregistration implements Protocol, Event {
     private int type = OVERLAY_NODE_SENDS_DEREGISTRATION;
     private String IP;
     private int portNum;
-    private int assignedID;
+    private int nodeID;
 
-    public OverlayNodeSendsDeregistration(String IP, int portNum, int assignedID) {
+    public OverlayNodeSendsDeregistration(String IP, int portNum, int nodeID) {
         this.IP = IP;
         this.portNum = portNum;
-        this.assignedID = assignedID;
+        this.nodeID = nodeID;
     }
 
     public String getIP() {
@@ -24,8 +24,8 @@ public class OverlayNodeSendsDeregistration implements Protocol, Event {
         return portNum;
     }
 
-    public int getAssignedID() {
-        return assignedID;
+    public int getNodeID() {
+        return nodeID;
     }
 
     @Override
@@ -36,34 +36,27 @@ public class OverlayNodeSendsDeregistration implements Protocol, Event {
     // marshall this msg into a byte arr
     @Override
     public byte[] getBytes() throws IOException {
-        /*
-            Msg outline:
-            byte: msg type (OVERLAY_NODE_SENDS_DEREGISTRATION)
-            byte: length of following IP field
-            byte: IP addr
-            int:  portNum
-            int:  assigned node ID
-         */
+        /*  Msg outline:
+            int:    msg type (OVERLAY_NODE_SENDS_DEREGISTRATION)
+            int:    length of following IP field
+            byte[]: IP addr
+            int:    portNum
+            int:    nodeID  */
         byte[] marshalledBytes = null;
 
         ByteArrayOutputStream baOutStream = new ByteArrayOutputStream();
         DataOutputStream dOut = new DataOutputStream(baOutStream);
 
-        // msg type
         dOut.writeInt(type);
 
         byte[] IPbytes = IP.getBytes();
         int IPlength = IPbytes.length;
-        // len of IP addr
         dOut.writeInt(IPlength);
-        // IP addr in bytes
         dOut.write(IPbytes);
 
-        // portNum
         dOut.writeInt(portNum);
 
-        // assigned ID
-        dOut.writeInt(assignedID);
+        dOut.writeInt(nodeID);
 
         // write buffer to the stream
         dOut.flush();
