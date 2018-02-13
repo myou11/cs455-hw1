@@ -34,7 +34,10 @@ public class InteractiveCommandParser {
             return;
         }
 
-        System.out.printf("Executing list-messenging-nodes...\n");
+        if (DEBUG)
+            System.out.printf("Executing list-messenging-nodes...\n");
+
+        System.out.printf("There are currently (%d) messaging nodes registered:\n", registry.getRegisteredNodes().size());
 
         for (Map.Entry<Integer, String> registeredNode : registry.getRegisteredNodes().entrySet()) {
             // [0]: IP addr, [1]: portNum
@@ -45,13 +48,12 @@ public class InteractiveCommandParser {
 
     // setup-overlay number-of-routing-table-entries (e.g. setup-overlay 3)
     public void setupOverlay(int routingTableSize) {
-        System.out.printf("Executing setup-overlay %d...\n", routingTableSize);
-
         Registry registry = (Registry) node;
 
         /*  Routing of msgs will deal only with the nodes that are registered at the
             time of setup-overlay being called  */
         registry.setNumNodesRegistered(registry.getRegisteredNodes().size());
+        System.out.printf("Executing setup-overlay with (%d) registered nodes and routing table size (%d)...\n", registry.getNumNodesRegistered(), routingTableSize);
 
         // Transfer the entries from the HashMap into an ArrayList for faster iteration
         ArrayList<Map.Entry<Integer, String>> registeredNodesList = new ArrayList<>(registry.getRegisteredNodes().entrySet());
@@ -71,7 +73,6 @@ public class InteractiveCommandParser {
                 int ID = registeredNodesList.get(indexAtHopsAway).getKey();
                 String IPportNumStr = registeredNodesList.get(indexAtHopsAway).getValue();
                 routingTable.addRoutingEntry(ID, IPportNumStr);
-                //routingTable[entry] = registeredNodesList.get(indexAtHopsAway).getKey().toString();
             }
 
             // Look at IDs in each routing tbl. Easier to see which nodes in which routing tbls and to spot if a node is in its own tbl.
@@ -104,7 +105,7 @@ public class InteractiveCommandParser {
 
         Registry registry = (Registry) node;
 
-        if (registry.getNumNodesEstablishedConnections() == registry.getRegisteredNodes().size()) {
+        if (registry.getNumNodesEstablishedConnections() == registry.getNumNodesRegistered()) {
             RegistryRequestsTaskInitiate taskInitiate = new RegistryRequestsTaskInitiate(numMessages);
             for (Map.Entry<Integer, String> entry : registry.getRegisteredNodes().entrySet()) {
                 try {

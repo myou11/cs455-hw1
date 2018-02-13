@@ -296,6 +296,7 @@ public class MessagingNode implements Protocol, Node {
         }
 
         // Done sending messages, so send task finished message to registry
+        System.out.println("Finished sending messages, reporting task finished to Registry...");
         OverlayNodeReportsTaskFinished taskFinished = new OverlayNodeReportsTaskFinished(this.IP, this.portNum, this.ID);
         connection.getSenderThread().addMessage(taskFinished.getBytes());
     }
