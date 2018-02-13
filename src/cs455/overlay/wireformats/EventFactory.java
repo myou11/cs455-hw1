@@ -164,6 +164,32 @@ public class EventFactory implements Protocol {
         return new OverlayNodeReportsTaskFinished(IP, portNum, nodeID);
     }
 
+    private Event getTrafficSummary(DataInputStream dIn) throws IOException {
+        return new RegistryRequestsTrafficSummary();
+    }
+
+    private Event getTrafficSummaryReport(DataInputStream dIn) throws IOException {
+        // nodeID
+        int nodeID = dIn.readInt();
+
+        // total num packets sent
+        int totalPacketsSent = dIn.readInt();
+
+        // total num packets relayed
+        int totalPacketsRelayed = dIn.readInt();
+
+        // sum of packet data sent
+        long sendSummation = dIn.readLong();
+
+        // total num packets received
+        int totalPacketsRcvd = dIn.readInt();
+
+        // sum of packet data received
+        long rcvSummation = dIn.readLong();
+
+        return new OverlayNodeReportsTrafficSummary(nodeID, totalPacketsSent, totalPacketsRelayed, sendSummation, totalPacketsRcvd, rcvSummation);
+    }
+
     // registry will use this
     public Event processMsg(byte[] msg) throws IOException {
         ByteArrayInputStream baInStream = new ByteArrayInputStream(msg);
@@ -188,10 +214,14 @@ public class EventFactory implements Protocol {
                 return getOverlaySetupStatus(dIn);
             case (REGISTRY_REQUESTS_TASK_INITIATE):
                 return getTaskInitiate(dIn);
-            case(OVERLAY_NODE_SENDS_DATA):
+            case (OVERLAY_NODE_SENDS_DATA):
                 return getNodeSendsData(dIn);
-            case(OVERLAY_NODE_REPORTS_TASK_FINISHED):
+            case (OVERLAY_NODE_REPORTS_TASK_FINISHED):
                 return getTaskFinished(dIn);
+            case (REGISTRY_REQUESTS_TRAFFIC_SUMMARY):
+                return getTrafficSummary(dIn);
+            case (OVERLAY_NODE_REPORTS_TRAFFIC_SUMMARY):
+                return getTrafficSummaryReport(dIn);
         }
 
         // close the streams

@@ -105,6 +105,9 @@ public class MessagingNode implements Protocol, Node {
             case (OVERLAY_NODE_SENDS_DATA):
                 processNodeSendsData((OverlayNodeSendsData)event);
                 break;
+            case (REGISTRY_REQUESTS_TRAFFIC_SUMMARY):
+                processTrafficSummary(connection);
+                break;
         }
     }
 
@@ -341,6 +344,11 @@ public class MessagingNode implements Protocol, Node {
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, srcID, payload, routingTrace);
             routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         }
+    }
+
+    private void processTrafficSummary(TCPConnection connection) throws IOException {
+        OverlayNodeReportsTrafficSummary trafficSummary = new OverlayNodeReportsTrafficSummary(this.ID, this.sndTracker, this.relayTracker, this.sndSummation, this.rcvTracker, this.rcvSummation);
+        connection.getSenderThread().addMessage(trafficSummary.getBytes());
     }
 
     public static void main(String[] args) {
