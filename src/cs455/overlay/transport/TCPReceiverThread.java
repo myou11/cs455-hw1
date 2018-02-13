@@ -59,6 +59,7 @@ public class TCPReceiverThread implements Runnable {
                 break;
             }
         }
-        System.out.println("------------------------------\nEXITING TCPReceiverThread!!!!!\n------------------------------");
+        if (DEBUG)
+            System.out.println("------------------------------\nEXITING TCPReceiverThread!!!!!\n------------------------------");
     }
 }

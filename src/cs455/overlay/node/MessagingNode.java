@@ -118,10 +118,10 @@ public class MessagingNode implements Protocol, Node {
 
             // store the ID registry assigned this node
             this.ID = event.getID();
+            System.out.println(event.getInfoStr());
 
             if (DEBUG) {
                 System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, connection.getSocket());
-                System.out.println(event.getInfoStr());
                 System.out.println("My assigned ID is: " + this.ID);
             }
         } else { // registration failure

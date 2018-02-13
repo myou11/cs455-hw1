@@ -36,9 +36,9 @@ public class Registry implements Protocol, Node {
     private long packetsRcvdSummation = 0;
 
     public Registry(int portNum, ServerSocket serverSocket) {
-        portNum = portNum;
-        serverSocket = serverSocket;
-        connectionsCache = new TCPConnectionsCache();
+        this.portNum = portNum;
+        this.serverSocket = serverSocket;
+        this.connectionsCache = new TCPConnectionsCache();
     }
 
     public TreeMap<Integer, String> getRegisteredNodes() { return registeredNodes; }
@@ -52,7 +52,7 @@ public class Registry implements Protocol, Node {
     }
 
     public void setNumNodesRegistered(int numNodesRegistered) {
-        numNodesRegistered = numNodesRegistered;
+        this.numNodesRegistered = numNodesRegistered;
     }
 
     public int getNumNodesEstablishedConnections() {
@@ -100,7 +100,7 @@ public class Registry implements Protocol, Node {
 
     private synchronized void registerNode(OverlayNodeSendsRegistration event, TCPConnection connection) throws IOException {
         int ID = assignID();
-        // create a string to represent the IP and portNum of msging node. use as key into HashMap
+        // create a string to represent the IP and portNum of msging node. use this as key into HashMap
         String IPportNumStr = event.getIP() + ':' + event.getPortNum();
 
         // Info on outcome of registration (i.e. success or failure)
@@ -114,7 +114,7 @@ public class Registry implements Protocol, Node {
                     "the overlay is (" + registeredNodes.size() + ")";
 
             // add the connection into the registry's connection cache, so we can use it for communication later
-            getConnectionsCache().addConnection(IPportNumStr, connection);
+            connectionsCache.addConnection(IPportNumStr, connection);
 
             if (DEBUG)
                 System.out.printf("Registered node from %s, ID is %d\n", registeredNodes.get(ID), ID);
@@ -122,7 +122,7 @@ public class Registry implements Protocol, Node {
             // TODO: TEST IF IT WILL FAIL IF WE TRY TO REGISTER A NODE MORE THAN ONCE. JUST CODE SEND A REG REQ TWICE IN THE MSG NODE
             ID = -1; // failure ID
             infoStr = "Registration request failed. There is either (1) no more room in the Registry, " +
-                    "(2) node has already been registered, or (3) the IP address in the request did not" +
+                    "(2) this node has already been registered, or (3) the IP address in the request did not" +
                     "match the IP address of the origin";
         }
 
@@ -209,6 +209,8 @@ public class Registry implements Protocol, Node {
         this.packetsRelayed += packetsRelayed;
         this.packetsSntSummation += packetsSntSummation;
         this.packetsRcvdSummation += packetsRcvdSummation;
+
+        ++numTrafficSummariesRcvd;
 
         if (numTrafficSummariesRcvd == numNodesRegistered) {
             System.out.printf("Sum \t| %d \t| %d \t| %d \t| %d \t| %d \n",
