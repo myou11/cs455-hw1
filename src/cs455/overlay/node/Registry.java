@@ -21,7 +21,11 @@ public class Registry implements Protocol, Node {
     // store sockets used to communicate with other nodes so we dont have to create a new socket for each communication (snd/rcv)
     private TCPConnectionsCache connectionsCache;
     private ServerSocket serverSocket;
+    private int numNodesRegistered; // set when setup-overlay is initiated
     private int numNodesEstablishedConnections = 0;
+
+    // keep track of nodes that have finished sending packets
+    private int numNodesFinishedSending = 0;
 
     public Registry(int portNum, ServerSocket serverSocket) {
         this.portNum = portNum;
@@ -39,6 +43,10 @@ public class Registry implements Protocol, Node {
         return serverSocket;
     }
 
+    public void setNumNodesRegistered(int numNodesRegistered) {
+        this.numNodesRegistered = numNodesRegistered;
+    }
+
     public int getNumNodesEstablishedConnections() {
         return numNodesEstablishedConnections;
     }
@@ -54,6 +62,10 @@ public class Registry implements Protocol, Node {
                 break;
             case (NODE_REPORTS_OVERLAY_SETUP_STATUS):
                 processOverlaySetupStatusResponse((NodeReportsOverlaySetupStatus)event);
+                break;
+            case (OVERLAY_NODE_REPORTS_TASK_FINISHED):
+                processTaskFinished((OverlayNodeReportsTaskFinished)event);
+                break;
         }
     }
 
@@ -72,7 +84,7 @@ public class Registry implements Protocol, Node {
     private boolean validRegistration(String IP, int portNum, TCPConnection connection) {
         String IPportNumStr = IP + ':' + portNum;
         String connectionIP = connection.getSocket().getInetAddress().getHostAddress();
-        return registeredNodes.containsValue(IPportNumStr) && connectionIP.equals(IP);
+        return !registeredNodes.containsValue(IPportNumStr) && connectionIP.equals(IP);
     }
 
     private synchronized void registerNode(OverlayNodeSendsRegistration event, TCPConnection connection) throws IOException {
@@ -97,6 +109,7 @@ public class Registry implements Protocol, Node {
                 System.out.printf("Registered node from %s, ID is %d\n", registeredNodes.get(ID), ID);
         } else { // invalid registration request
             // TODO: TEST IF IT WILL FAIL IF WE TRY TO REGISTER A NODE MORE THAN ONCE. JUST CODE SEND A REG REQ TWICE IN THE MSG NODE
+            ID = -1; // failure ID
             infoStr = "Registration request failed. There is either (1) no more room in the Registry, " +
                     "(2) this node has already been registered, or (3) the IP address in the request did not" +
                     "match the IP address of the origin";
@@ -113,7 +126,7 @@ public class Registry implements Protocol, Node {
     }
 
     private synchronized void deregisterNode(OverlayNodeSendsDeregistration event, TCPConnection connection) throws IOException {
-        int idToRemove = event.getAssignedID();
+        int idToRemove = event.getNodeID();
         String infoStr;
         Socket connectionSocket = connection.getSocket();
 
@@ -149,6 +162,13 @@ public class Registry implements Protocol, Node {
             System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
         else
             System.out.println("Not all nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
+    }
+
+    // Syncd b/c registry could get many reports of finished sending at once
+    private synchronized void processTaskFinished(OverlayNodeReportsTaskFinished event) {
+        ++numNodesFinishedSending;
+        if (DEBUG && numNodesFinishedSending == numNodesRegistered)
+            System.out.println("ALL MESSAGING NODES HAVE FINISHED SENDING MESSAGES");
     }
 
     private void processCommand(String[] command, InteractiveCommandParser commandParser) {

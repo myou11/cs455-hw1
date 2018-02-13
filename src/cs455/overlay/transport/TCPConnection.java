@@ -32,4 +32,8 @@ public class TCPConnection {
         (new Thread(senderThread)).start();
         (new Thread(receiverThread)).start();
     }
+
+    public String toString() {
+        return socket.toString();
+    }
 }
