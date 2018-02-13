@@ -1,6 +1,6 @@
 package cs455.overlay.transport;
 
-import cs455.overlay.node.MessengerNode;
+import cs455.overlay.node.MessagingNode;
 import cs455.overlay.node.Registry;
 import cs455.overlay.wireformats.Node;
 
@@ -17,7 +17,7 @@ public class TCPServerThread implements Runnable {
         if (node instanceof Registry)
             this.serverSocket = ((Registry) node).getServerSocket();
         else
-            this.serverSocket = ((MessengerNode) node).getServerSocket();
+            this.serverSocket = ((MessagingNode) node).getServerSocket();
         this.node = node;
     }
 

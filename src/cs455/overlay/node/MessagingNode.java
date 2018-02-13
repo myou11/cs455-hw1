@@ -12,8 +12,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.*;
 
-public class MessengerNode implements Protocol, Node {
-    private boolean DEBUG = true;
+public class MessagingNode implements Protocol, Node {
+    private boolean DEBUG = false;
 
     private int ID;
     private String IP;
@@ -34,7 +34,7 @@ public class MessengerNode implements Protocol, Node {
     // lock to update the trackers
     private final Object trackersLock = new Object();
 
-    public MessengerNode(String IP, int portNum, ServerSocket serverSocket, String registryIPportNumStr) {
+    public MessagingNode(String IP, int portNum, ServerSocket serverSocket, String registryIPportNumStr) {
         this.IP = IP;
         this.portNum = portNum;
         this.serverSocket = serverSocket;
@@ -374,7 +374,7 @@ public class MessengerNode implements Protocol, Node {
                 String registryIPportNumStr = args[0] + ':' + args[1];
 
                 // create messenger node
-                MessengerNode msgNode = new MessengerNode(IP, serverSocket.getLocalPort(), serverSocket, registryIPportNumStr);
+                MessagingNode msgNode = new MessagingNode(IP, serverSocket.getLocalPort(), serverSocket, registryIPportNumStr);
 
                 // start the server of the msging node in a different thread so it can do other tasks while listening for connections
                 (new Thread(new TCPServerThread(msgNode))).start();

@@ -1,6 +1,6 @@
 package cs455.overlay.util;
 
-import cs455.overlay.node.MessengerNode;
+import cs455.overlay.node.MessagingNode;
 import cs455.overlay.node.Registry;
 import cs455.overlay.routing.RoutingTable;
 import cs455.overlay.transport.TCPConnection;
@@ -122,14 +122,14 @@ public class InteractiveCommandParser {
     }
     /* END Registry COMMANDS */
 
-    /* BEGIN MessengerNode COMMANDS */
+    /* BEGIN MessagingNode COMMANDS */
 
     // print-counters-and-diagnostics
     // Info about the counters and trackers of a msging node
     public void printCountersAndDiagnostics() {
         System.out.printf("Executing print-counters-and-diagnostics...\n");
 
-        MessengerNode msgNode = (MessengerNode) node;
+        MessagingNode msgNode = (MessagingNode) node;
 
         System.out.printf("-- Trackers and Summations --\nsndTracker: %d\nrcvTracker: %d\nrelayTracker: %d\nsndSummation: %d\nrcvSummation: %d\n",
                             msgNode.getSndTracker(), msgNode.getRcvTracker(), msgNode.getRelayTracker(), msgNode.getSndSummation(), msgNode.getRcvSummation());
@@ -139,7 +139,7 @@ public class InteractiveCommandParser {
     public void exitOverlay() {
         System.out.printf("Executing exit-overlay...\n");
 
-        MessengerNode msgNode = ((MessengerNode) node);
+        MessagingNode msgNode = ((MessagingNode) node);
         OverlayNodeSendsDeregistration nodeDeregistration = new OverlayNodeSendsDeregistration(msgNode.getIP(), msgNode.getPortNum(), msgNode.getID());
 
         // Retrieve connection to registry and send a deregistration request
@@ -152,5 +152,5 @@ public class InteractiveCommandParser {
         }
     }
 
-    /* END MessengerNode COMMANDS */
+    /* END MessagingNode COMMANDS */
 }
