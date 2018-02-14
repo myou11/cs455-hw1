@@ -1,5 +1,6 @@
 package cs455.overlay.node;
 
+import cs455.overlay.routing.RoutingTable;
 import cs455.overlay.transport.TCPConnection;
 import cs455.overlay.transport.TCPConnectionsCache;
 import cs455.overlay.transport.TCPServerThread;
@@ -22,6 +23,9 @@ public class Registry implements Protocol, Node {
     private TCPConnectionsCache connectionsCache;
     private ServerSocket serverSocket;
 
+    // Routing table for each node ID
+    private TreeMap<Integer, RoutingTable> nodeRoutingTables = new TreeMap<>();
+
     private int numNodesRegistered; // set when setup-overlay is initiated
     private int numNodesEstablishedConnections = 0;
 
@@ -43,6 +47,10 @@ public class Registry implements Protocol, Node {
     }
 
     public TreeMap<Integer, String> getRegisteredNodes() { return registeredNodes; }
+
+    public TreeMap<Integer, RoutingTable> getNodeRoutingTables() {
+        return nodeRoutingTables;
+    }
 
     public TCPConnectionsCache getConnectionsCache() {
         return connectionsCache;
