@@ -195,9 +195,9 @@ public class Registry implements Protocol, Node {
 
         if (numNodesFinishedSending == numNodesRegistered) {
             System.out.printf("All messaging nodes have finished sending messages...\n" +
-                    "Waiting 15 seconds before retrieving traffic summaries from messaging nodes...\n");
+                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n");
             try {
-                Thread.sleep(15000);
+                Thread.sleep(30000);
             } catch (InterruptedException ie) {
                 System.out.println("Thread was interrupted");
                 ie.printStackTrace();

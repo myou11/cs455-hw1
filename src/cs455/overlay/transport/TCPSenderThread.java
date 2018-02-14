@@ -4,8 +4,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TCPSenderThread implements Runnable {
+    private Socket socket;
     private DataOutputStream dOut;
 
     /*  Access to this must be synchronized b/c while only the main thread
@@ -13,23 +15,29 @@ public class TCPSenderThread implements Runnable {
         can be relaying msgs since a msging node can rcv msgs from each of its
         connections. Therefore, we can only allow one rcvr thead at a time to
         add msgs to the msgQueue.  */
-    private ArrayList<byte[]> msgQueue;
+    //private ArrayList<byte[]> msgQueue;
+    private ConcurrentLinkedQueue<byte[]> msgQueue;
 
     private boolean DEBUG = false;
 
     public TCPSenderThread(Socket socket) throws IOException {
+        this.socket = socket;
         this.dOut = new DataOutputStream(socket.getOutputStream());
-        this.msgQueue = new ArrayList<>();
+        this.msgQueue = new ConcurrentLinkedQueue<>();
     }
 
     public int getMsgQueueSize() {
         return msgQueue.size();
     }
 
-    public synchronized void addMessage(byte[] msg) {
+    /*public synchronized void addMessage(byte[] msg) {
         msgQueue.add(msg);
         // let any thread know to check the msgQueue again
         notifyAll();
+    }*/
+
+    public void addMessage(byte[] msg) {
+        msgQueue.add(msg);
     }
 
     private void sendData(byte[] msg) throws IOException {
@@ -49,11 +57,12 @@ public class TCPSenderThread implements Runnable {
         msgQueue.remove(msg);
     }
 
-    public synchronized void run() {
+    // TODO: MIGHT NEED TO SNYC RUN OR ADDMSG
+    public void run() {
         if (DEBUG)
             System.out.println("Starting TCPSenderThread...");
 
-        try {
+        /*try {
             while(true) {
                 if (msgQueue.isEmpty()) {
                     try {
@@ -70,9 +79,20 @@ public class TCPSenderThread implements Runnable {
                         System.out.println("Sending msg");
                 }
             }
-        }
-        catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }*/
+
+        while (socket != null) {    // while the socket is still connected
+            byte[] msgToSend = msgQueue.poll();
+            try {
+                if (msgToSend != null) {
+                    sendData(msgToSend);
+                }
+            } catch (IOException ioe) {
+                System.out.println("TCPSenderThread: Message failed to send");
+                ioe.printStackTrace();
+            }
         }
     }
 }
