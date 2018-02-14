@@ -94,7 +94,7 @@ public class MessagingNode implements Protocol, Node {
                 processRegistrationStatusResponse((RegistryReportsRegistrationStatus)event, connection);
                 break;
             case (REGISTRY_REPORTS_DEREGISTRATION_STATUS):
-                processDeregistrationStatusResponse((RegistryReportsDeregistrationStatus)event, connection);
+                processDeregistrationStatusResponse((RegistryReportsDeregistrationStatus)event);
                 break;
             case (REGISTRY_SENDS_NODE_MANIFEST):
                 processNodeManifest((RegistrySendsNodeManifest)event, connection);
@@ -129,22 +129,18 @@ public class MessagingNode implements Protocol, Node {
         }
     }
 
-    private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event, TCPConnection connection) {
+    private void processDeregistrationStatusResponse(RegistryReportsDeregistrationStatus event) {
         int deregisteredID = event.getDeregisteredID();
         System.out.println(event.getInfoStr());
         System.out.printf("The deregistered ID was %d\n", deregisteredID);
-        // TODO: remove the connection to registry from connectionsCache
-        // Do I need to do this?
-        // ALSO: is there a way to not have a connectionsCache for each msging node and only have it for the registry
-        // the msging nodes are only snding msgs forward and never backwards, so technically they only need to
-        // remember their sockets that they used to connect to the other msging node
-        // Idk though, as of 2:38pm on 2/2/18, I'm thinking that having a connections cache is good
-        System.out.println("Uncached connection to Registry");
+        TCPConnection removedRegistryConnection = connectionsCache.removeConnection(registryIPportNumStr);
+        System.out.printf("Uncached connection to Registry: %s\n", removedRegistryConnection);
     }
 
-    // TODO: Could pass in a TCPConnection and use that as the registry connection instead of retrieving the registry connection below
     // this would work because only the receiver thread on the connection between this node and the registry would rcv this msg
     // connection is the connection to the registry, use that to send msg back to registry
+    /*  Only the connection to the registry could have sent this message so connection
+        int this context is the regsitry connection. Use this to send response back  */
     private void processNodeManifest(RegistrySendsNodeManifest event, TCPConnection connection) throws IOException {
         routingTable = event.getRoutingTable();
 

@@ -156,25 +156,31 @@ public class Registry implements Protocol, Node {
 
         // if getting the node with idToRemove returns null, node doesn't exist in registry anymore, so can't deregister
         if (validDeregistration(event.getIP(), idToRemove, connection)) {
-            String removed = registeredNodes.remove(idToRemove);
+            String removedIPportNumStr = registeredNodes.remove(idToRemove);
+            RoutingTable removedTable = nodeRoutingTables.remove(idToRemove);
 
-            if (DEBUG)
-                System.out.printf("Removed node with ID [%d] and value [%s] from registeredNodes\n", idToRemove, removed);
+            // remove the registry's connection (socket) from the connectionsCache
+            String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
+            connectionsCache.removeConnection(IPportNumStr);
+
+            System.out.printf("Removed node with ID [%d] and IP:port [%s] from registeredNodes\n" +
+                    "Removed its entry in the routing table list as well:\n", idToRemove, removedIPportNumStr, removedTable);
 
             infoStr = "Deregistration request successful. The number of messaging nodes currently constituting " +
                     "the overlay is (" + registeredNodes.size() + ")";
 
+            RegistryReportsDeregistrationStatus deregistrationStatus = new RegistryReportsDeregistrationStatus(idToRemove, infoStr);
+            connection.getSenderThread().addMessage(deregistrationStatus.getBytes());
+
         } else { // invalid deregistration request
             infoStr = "Deregistration request failed. The node was (1) not registered in the system or (i.e. deregistered already or was never registered) " +
                     "(2) the IP address in the request did not match the IP address of the origin";
+
+            RegistryReportsDeregistrationStatus deregistrationStatus = new RegistryReportsDeregistrationStatus(idToRemove, infoStr);
+            connection.getSenderThread().addMessage(deregistrationStatus.getBytes());
         }
 
-        // remove the registry's connection (socket) from the connectionsCache
-        String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
-        TCPConnection removedConnection = connectionsCache.removeConnection(IPportNumStr);
 
-        RegistryReportsDeregistrationStatus deregistrationStatus = new RegistryReportsDeregistrationStatus(idToRemove, infoStr);
-        removedConnection.getSenderThread().addMessage(deregistrationStatus.getBytes());
     }
 
     // Syncd b/c registry could get many responses from the msging nodes at once
