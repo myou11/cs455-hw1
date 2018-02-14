@@ -3,6 +3,7 @@ package cs455.overlay.transport;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class TCPConnectionsCache {
     // the key will be a string that is a concatenation of the IP addr and portNum of a node
@@ -23,6 +24,10 @@ public class TCPConnectionsCache {
 
     public TCPConnection getConnection(String IPportNumKey) {
         return connections.get(IPportNumKey);
+    }
+
+    public Set<Map.Entry<String, TCPConnection>> getEntrySet() {
+        return connections.entrySet();
     }
 
     public String toString() {

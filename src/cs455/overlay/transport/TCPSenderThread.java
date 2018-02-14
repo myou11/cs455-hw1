@@ -22,6 +22,10 @@ public class TCPSenderThread implements Runnable {
         this.msgQueue = new ArrayList<>();
     }
 
+    public int getMsgQueueSize() {
+        return msgQueue.size();
+    }
+
     public synchronized void addMessage(byte[] msg) {
         msgQueue.add(msg);
         // let any thread know to check the msgQueue again

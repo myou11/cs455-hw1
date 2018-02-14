@@ -4,6 +4,7 @@ import cs455.overlay.node.MessagingNode;
 import cs455.overlay.node.Registry;
 import cs455.overlay.routing.RoutingTable;
 import cs455.overlay.transport.TCPConnection;
+import cs455.overlay.transport.TCPConnectionsCache;
 import cs455.overlay.wireformats.Node;
 import cs455.overlay.wireformats.OverlayNodeSendsDeregistration;
 import cs455.overlay.wireformats.RegistryRequestsTaskInitiate;
@@ -134,6 +135,14 @@ public class InteractiveCommandParser {
 
         System.out.printf("-- Trackers and Summations --\nsndTracker: %d\nrcvTracker: %d\nrelayTracker: %d\nsndSummation: %d\nrcvSummation: %d\n",
                             msgNode.getSndTracker(), msgNode.getRcvTracker(), msgNode.getRelayTracker(), msgNode.getSndSummation(), msgNode.getRcvSummation());
+    }
+
+    public void printMsgQueueSize() {
+        MessagingNode msgNode = (MessagingNode)node;
+        TCPConnectionsCache cc = msgNode.getConnectionsCache();
+        for (Map.Entry<String, TCPConnection> entry : cc.getEntrySet()) {
+            System.out.printf("Msg queue size: %d\n", entry.getValue().getSenderThread().getMsgQueueSize());
+        }
     }
 
     // exit-overlay

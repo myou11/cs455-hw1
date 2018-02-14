@@ -176,7 +176,7 @@ public class Registry implements Protocol, Node {
             ++numNodesEstablishedConnections;
 
             if (numNodesEstablishedConnections == numNodesRegistered)
-                System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
+                System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table\nRegistry now ready to initiate tasks");
         }
         else
             System.out.println(event.getInfoStr());
