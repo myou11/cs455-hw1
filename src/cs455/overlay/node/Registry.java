@@ -226,6 +226,9 @@ public class Registry implements Protocol, Node {
                 TCPConnection connection = connectionsCache.getConnection(IPportNumStr);
                 connection.getSenderThread().addMessage(trafficSummary.getBytes());
             }
+
+            // reset for future runs
+            numNodesFinishedSending = 0;
         }
     }
 
@@ -238,11 +241,16 @@ public class Registry implements Protocol, Node {
         long packetsRcvdSummation = event.getRcvSummation();
 
         // If this is the first of the traffic summaries, print the table header
-        if (numTrafficSummariesRcvd == 0)
-            System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
+        if (numTrafficSummariesRcvd == 0) {
+            //System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
+            System.out.printf ("%-40s %-20s %-20s %-20s %-20s\n", "Packets Sent", "Packets Received", "Packets Relayed", "Sum Values Sent", "Sum Values Received");
+        }
 
-        System.out.printf("Node %d\t| %d\t| %d\t| %d\t| %d\t| %d\n",
-                            nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
+        //System.out.printf("Node %d\t\t| %d\t| %d\t| %d\t| %d\t| %d\n",
+        //                    nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
+        String nodeIDStr = "Node" + nodeID;
+        System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", "Node", nodeID,
+                packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
 
         this.packetsSnt += packetsSnt;
         this.packetsRcvd += packetsRcvd;
@@ -253,11 +261,16 @@ public class Registry implements Protocol, Node {
         ++numTrafficSummariesRcvd;
 
         if (numTrafficSummariesRcvd == numNodesRegistered) {
-            System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
+            /*System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
                               this.packetsSnt, this.packetsRcvd, this.packetsRelayed,
-                              this.packetsSntSummation, this.packetsRcvdSummation);
+                              this.packetsSntSummation, this.packetsRcvdSummation);*/
+            System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", "Sum",
+                    this.packetsSnt, this.packetsRcvd, this.packetsRelayed, this.packetsSntSummation, this.packetsRcvdSummation);
         }
 
+        // reset for future runs
+        if (numTrafficSummariesRcvd == numNodesRegistered)
+            numTrafficSummariesRcvd = 0;
     }
 
     private void processCommand(String[] command, InteractiveCommandParser commandParser) {
