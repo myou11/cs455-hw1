@@ -76,9 +76,13 @@ public class InteractiveCommandParser {
                 routingTable.addRoutingEntry(ID, IPportNumStr);
             }
 
+            // Store the routing table so it's easy to display them for the user on list-routing-tables command
+            int nodeID = registeredNodesList.get(nodeIndex).getKey();
+            registry.getNodeRoutingTables().put(nodeID, routingTable);
+
             // Look at IDs in each routing tbl. Easier to see which nodes in which routing tbls and to spot if a node is in its own tbl.
             if (DEBUG)
-                System.out.printf("Routing table for node %d is:\n%s", registeredNodesList.get(nodeIndex).getKey(), routingTable);
+                System.out.printf("Routing table for node %d is:\n%s", nodeID, routingTable);
 
             /*  Retrieve the connection to the current node and send it its routing table and info about all nodes in the system  */
             try {
@@ -97,6 +101,15 @@ public class InteractiveCommandParser {
     // Info about routing tbls of each node
     public void listRoutingTables() {
         System.out.printf("Executing list-routing-tables...\n");
+
+        Registry registry = (Registry) node;
+        System.out.println("Routing Tables:\n");
+
+        for (Map.Entry<Integer, RoutingTable> entry : registry.getNodeRoutingTables().entrySet()) {
+            int nodeID = entry.getKey();
+            RoutingTable routingTable = entry.getValue();
+            System.out.printf("Node %d:\n%s\n\n\n", nodeID, routingTable.toString());
+        }
     }
 
     // start number-of-messages (e.g. start 25000)
