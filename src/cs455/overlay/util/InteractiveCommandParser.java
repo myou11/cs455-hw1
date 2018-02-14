@@ -20,6 +20,9 @@ public class InteractiveCommandParser {
     // node allows the command parser to know whether it is parsing commands for the registry or the msging node
     private Node node;
 
+    // If false, can't run the list-routing-tables and start number-of-messages commands
+    private boolean overlayWasSetup = false;
+
     public InteractiveCommandParser(Node node) {
         this.node = node;
     }
@@ -49,6 +52,8 @@ public class InteractiveCommandParser {
 
     // setup-overlay number-of-routing-table-entries (e.g. setup-overlay 3)
     public void setupOverlay(int routingTableSize) {
+        overlayWasSetup = true;
+
         Registry registry = (Registry) node;
 
         /*  Routing of msgs will deal only with the nodes that are registered at the
@@ -100,6 +105,10 @@ public class InteractiveCommandParser {
     // list-routing-tables
     // Info about routing tbls of each node
     public void listRoutingTables() {
+        if (!overlayWasSetup) {
+            System.out.println("No routing tables because the overlay has not been setup yet. Please run setup-overlay first");
+            return;
+        }
         System.out.printf("Executing list-routing-tables...\n");
 
         Registry registry = (Registry) node;
@@ -115,6 +124,10 @@ public class InteractiveCommandParser {
     // start number-of-messages (e.g. start 25000)
     // Send all nodes a request to start sending number-of-messages to random nodes in the system
     public void start(int numMessages) {
+        if (!overlayWasSetup) {
+            System.out.println("Overlay has not been setup yet. Please run setup-overlay first");
+            return;
+        }
         System.out.printf("Executing start %d...\n", numMessages);
 
         Registry registry = (Registry) node;
@@ -150,6 +163,7 @@ public class InteractiveCommandParser {
                             msgNode.getSndTracker(), msgNode.getRcvTracker(), msgNode.getRelayTracker(), msgNode.getSndSummation(), msgNode.getRcvSummation());
     }
 
+    // Was used to debug the wait-notify msg queue implementation
     public void printMsgQueueSize() {
         MessagingNode msgNode = (MessagingNode)node;
         TCPConnectionsCache cc = msgNode.getConnectionsCache();
