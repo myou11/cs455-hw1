@@ -16,16 +16,25 @@ public class Registry implements Protocol, Node {
 
     private int portNum;
     /*  Integer will be IDs of the registered nodes and String will be a string representation of IP and portNum of registered node.
-        Access to this map will be syncd since registry could rcv many registration/deregistration requests at once  */
+        Access to map will be syncd since registry could rcv many registration/deregistration requests at once  */
     private TreeMap<Integer, String> registeredNodes = new TreeMap<>();
     // store sockets used to communicate with other nodes so we dont have to create a new socket for each communication (snd/rcv)
     private TCPConnectionsCache connectionsCache;
     private ServerSocket serverSocket;
+
     private int numNodesRegistered; // set when setup-overlay is initiated
     private int numNodesEstablishedConnections = 0;
 
     // keep track of nodes that have finished sending packets
     private int numNodesFinishedSending = 0;
+
+    // Counters for the traffic summaries nodes will send back
+    private int numTrafficSummariesRcvd = 0;
+    private int packetsSnt = 0;
+    private int packetsRcvd = 0;
+    private int packetsRelayed = 0;
+    private long packetsSntSummation = 0;
+    private long packetsRcvdSummation = 0;
 
     public Registry(int portNum, ServerSocket serverSocket) {
         this.portNum = portNum;
@@ -41,6 +50,10 @@ public class Registry implements Protocol, Node {
 
     public ServerSocket getServerSocket() {
         return serverSocket;
+    }
+
+    public int getNumNodesRegistered() {
+        return numNodesRegistered;
     }
 
     public void setNumNodesRegistered(int numNodesRegistered) {
@@ -65,6 +78,9 @@ public class Registry implements Protocol, Node {
                 break;
             case (OVERLAY_NODE_REPORTS_TASK_FINISHED):
                 processTaskFinished((OverlayNodeReportsTaskFinished)event);
+                break;
+            case (OVERLAY_NODE_REPORTS_TRAFFIC_SUMMARY):
+                processTrafficSummary((OverlayNodeReportsTrafficSummary)event);
                 break;
         }
     }
@@ -103,7 +119,7 @@ public class Registry implements Protocol, Node {
                     "the overlay is (" + registeredNodes.size() + ")";
 
             // add the connection into the registry's connection cache, so we can use it for communication later
-            this.getConnectionsCache().addConnection(IPportNumStr, connection);
+            connectionsCache.addConnection(IPportNumStr, connection);
 
             if (DEBUG)
                 System.out.printf("Registered node from %s, ID is %d\n", registeredNodes.get(ID), ID);
@@ -158,17 +174,76 @@ public class Registry implements Protocol, Node {
         if (event.getStatus() > -1) {   // succeeded in setting up overlay
             System.out.println(event.getInfoStr());
             ++numNodesEstablishedConnections;
-        } else if (numNodesEstablishedConnections == registeredNodes.size())
-            System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
+
+            if (numNodesEstablishedConnections == numNodesRegistered)
+                System.out.println("All nodes in the overlay were successful in establishing connections to nodes that comprised their routing table\nRegistry now ready to initiate tasks");
+        }
         else
-            System.out.println("Not all nodes in the overlay were successful in establishing connections to nodes that comprised their routing table");
+            System.out.println(event.getInfoStr());
     }
 
     // Syncd b/c registry could get many reports of finished sending at once
-    private synchronized void processTaskFinished(OverlayNodeReportsTaskFinished event) {
+    private synchronized void processTaskFinished(OverlayNodeReportsTaskFinished event) throws IOException {
+        String IP = event.getIP();
+        int portNum = event.getPortNum();
+        int nodeID = event.getNodeID();
+
+        if (DEBUG)
+            System.out.printf("Node (%d) [%s:%d] has finished sending messages\n", nodeID, IP, portNum);
+
         ++numNodesFinishedSending;
-        if (DEBUG && numNodesFinishedSending == numNodesRegistered)
-            System.out.println("ALL MESSAGING NODES HAVE FINISHED SENDING MESSAGES");
+
+        if (numNodesFinishedSending == numNodesRegistered) {
+            System.out.printf("All messaging nodes have finished sending messages...\n" +
+                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n");
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException ie) {
+                System.out.println("Thread was interrupted");
+                ie.printStackTrace();
+                System.exit(1);
+            }
+
+            RegistryRequestsTrafficSummary trafficSummary = new RegistryRequestsTrafficSummary();
+            for (Map.Entry<Integer, String> entry : registeredNodes.entrySet()) {
+                /*  Get the IP and portNum for the registered node so we can retrieve the
+                    connection associated with that node. Send the message through that connection  */
+                String IPportNumStr = entry.getValue();
+                TCPConnection connection = connectionsCache.getConnection(IPportNumStr);
+                connection.getSenderThread().addMessage(trafficSummary.getBytes());
+            }
+        }
+    }
+
+    private synchronized void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
+        int nodeID = event.getID();
+        int packetsSnt = event.getTotalPacketsSent();
+        int packetsRcvd = event.getTotalPacketsRcvd();
+        int packetsRelayed = event.getTotalPacketsRelayed();
+        long packetsSntSummation = event.getSendSummation();
+        long packetsRcvdSummation = event.getRcvSummation();
+
+        // If this is the first of the traffic summaries, print the table header
+        if (numTrafficSummariesRcvd == 0)
+            System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
+
+        System.out.printf("Node %d\t| %d\t| %d\t| %d\t| %d\t| %d\n",
+                            nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
+
+        this.packetsSnt += packetsSnt;
+        this.packetsRcvd += packetsRcvd;
+        this.packetsRelayed += packetsRelayed;
+        this.packetsSntSummation += packetsSntSummation;
+        this.packetsRcvdSummation += packetsRcvdSummation;
+
+        ++numTrafficSummariesRcvd;
+
+        if (numTrafficSummariesRcvd == numNodesRegistered) {
+            System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
+                              this.packetsSnt, this.packetsRcvd, this.packetsRelayed,
+                              this.packetsSntSummation, this.packetsRcvdSummation);
+        }
+
     }
 
     private void processCommand(String[] command, InteractiveCommandParser commandParser) {
@@ -179,7 +254,7 @@ public class Registry implements Protocol, Node {
                 break;
             case ("setup-overlay"):
                 if (command.length == 1) {
-                    // default routing table size is 3 if not specific
+                    // default routing table size is 3 if not specified
                     commandParser.setupOverlay(3);
                     break;
                 }

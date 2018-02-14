@@ -6,35 +6,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class RoutingTable {
-    /* private ArrayList<RoutingEntry> routingTable;
-
-    public RoutingTable() {
-        this.routingTable = new ArrayList<>();
-    }
-
-    public void addRoutingEntry(RoutingEntry entry) {
-        routingTable.add(entry);
-    }
-
-    public RoutingEntry getEntry(int i) {
-        return routingTable.get(i);
-    }
-
-    public boolean containsID(int ID) {
-        return routingTable.contains(ID);
-    }
-
-    public int size() {
-        return routingTable.size();
-    }
-
-    public String toString() {
-        return routingTable.toString();
-    }
-    */
-
     // used LinkedHashMap because I want the routing entries to be stored in the order they are inserted
     // entries are inserted by hop count; 1st: 1 hop, 2nd: 2 hops, 3rd: 4 hops, nth: 2^(n-1) hops
+    // An entry consists of an integer ID key and IP:portNum string value
     private LinkedHashMap<Integer, String> routingTable;
 
     public RoutingTable() {

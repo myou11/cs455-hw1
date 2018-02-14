@@ -12,6 +12,8 @@ public class TCPServerThread implements Runnable {
     private ServerSocket serverSocket;
     private Node node;
 
+    private boolean DEBUG = false;
+
     public TCPServerThread(Node node) {
         // Registry and MsgingNode each have their own serverSockets, typecast the node to call getServerSocket()
         if (node instanceof Registry)
@@ -22,7 +24,9 @@ public class TCPServerThread implements Runnable {
     }
 
     public void run() {
-        System.out.println("Starting TCPServerThread...");
+        if (DEBUG)
+            System.out.println("Starting TCPServerThread...");
+
         while(true) { // true so we can continue to listen for connections
             try {
                 /*  create a new socket with the incoming connection so we can pass it to

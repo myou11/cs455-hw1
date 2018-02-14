@@ -105,6 +105,9 @@ public class MessagingNode implements Protocol, Node {
             case (OVERLAY_NODE_SENDS_DATA):
                 processNodeSendsData((OverlayNodeSendsData)event);
                 break;
+            case (REGISTRY_REQUESTS_TRAFFIC_SUMMARY):
+                processTrafficSummary(connection);
+                break;
         }
     }
 
@@ -115,10 +118,10 @@ public class MessagingNode implements Protocol, Node {
 
             // store the ID registry assigned this node
             this.ID = event.getID();
+            System.out.println(event.getInfoStr());
 
             if (DEBUG) {
                 System.out.printf("Cached connection with %s using socket: %s\n", registryIPportNumStr, connection.getSocket());
-                System.out.println(event.getInfoStr());
                 System.out.println("My assigned ID is: " + this.ID);
             }
         } else { // registration failure
@@ -217,39 +220,107 @@ public class MessagingNode implements Protocol, Node {
         return dstID;
     }
 
-    // finds the closest node to the given dst ID and returns the connection to it
-    // TODO: NEED TO REDO THIS TO NOT USE THE LIST OF ALL NODES IN THE SYSTEM
-    private TCPConnection findClosestNode(int dstID) {
-        // store connection to closest node
-        TCPConnection routingConnection = null;
-
-        int numHopsToDst = 0;
-        // to find hops to dst, have to start at src ID (this node's) and count clockwise
-        int currIdx = registeredNodeIDs.indexOf(this.ID);
-        while(registeredNodeIDs.get(currIdx) != dstID) {
-            ++numHopsToDst;
-            currIdx = (currIdx + 1) % registeredNodeIDs.size();
+    //  Finds the closest node to the given dst ID and returns the connection to it
+    /*  Sort the routing table in ascending order so there is no need to deal
+        w/ ID space wrap-around. Once sorted, we can just look for the largest
+        ID that is less than the destination ID, and that is the closest node.
+        Special case for when no IDs less than destination ID are found. See comments below.  */
+    private TCPConnection findClosestNode(int dstID, Event event) {
+        /*String closestIPportNumStr;
+        if (routingTable.contains(dstID)) {
+            closestIPportNumStr = routingTable.getEntry(dstID);
+            return connectionsCache.getConnection(closestIPportNumStr);
         }
-        // after this loop, we should have the correct num hops to the dst
-
-        ArrayList<Map.Entry<Integer, String>> routingTableList = new ArrayList<>(routingTable.getEntrySet());
-
-        /*  Should always get overwritten in the loop since if the dstID is not in the routing table,
-            then with the way the tbl is set up, at least 2 entries must be before the dstID
-            (b/c if dstID is not in table, then it is at least 3 or more hops away and 1st & 2nd entries are only 1 & 2 hops away)  */
+        int currNodeID = this.ID;
+        int currRoutingID;
         int closestID = -1;
-        for(int entry = 0; entry < routingTableList.size(); ++entry) {
-            if(Math.pow(2, entry) < numHopsToDst) {
-                closestID = routingTableList.get(entry).getKey();
-                // get the connection to the current closest node
-                routingConnection = connectionsCache.getConnection(routingTableList.get(entry).getValue());
+        for (Map.Entry<Integer, String> entry : routingTable.getEntrySet()) {
+            currRoutingID = entry.getKey();
+
+            // Overshot and wrapped around the ID space
+            /*  This means this entry can't be a possible relay since
+                the closestID must be between the currNodeID and
+                dstID. Therefore, currRoutingID cannot be < currNodeID  *
+            if (currNodeID < dstID && currRoutingID < currNodeID)
+                break;
+
+            // currID < dst ID && this condition
+            // on the right path to finding the closest node,
+            // will get the largest ID less than the dst ID
+            if (currRoutingID < dstID)
+                closestID = currRoutingID;
+
+            /*  Case when the currNodeID is already greater than the sink
+                As long as the currRoutingID is also greater than the currNodeID,
+                then it is a valid ID between the currNodeID and dstID.
+                Basically finds the largest routingID to send packet to
+             *
+            else if (currNodeID > dstID && currRoutingID > currNodeID)
+                closestID = currRoutingID;
+        }
+
+        // If closest ID is not assigned after loop, then routing algorithm is wrong
+        if (closestID == -1) {
+            System.out.println("Something went wrong with the routing algorithm...");
+            System.exit(1);
+        }
+
+        if (DEBUG) {
+            if (event instanceof OverlayNodeSendsData) {
+                OverlayNodeSendsData sendsData = (OverlayNodeSendsData)event;
+                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
+                        this.ID, registeredNodeIDs.toString(), sendsData.getSrcID(), sendsData.getDstID(), closestID, sendsData.getRoutingTrace().toString());
+            } else {
+                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
+                        this.ID, registeredNodeIDs.toString(), this.ID, dstID, closestID, (new ArrayList<Integer>()).toString());
             }
         }
-        // after this loop, we should have the connection to the closest node w/o overshooting
 
-        if (DEBUG)
-            System.out.printf("Node (%d) is not in my routing table. Routing data to closest node: node (%d)\n", dstID, closestID);
+        closestIPportNumStr = routingTable.getEntry(closestID);
+        return connectionsCache.getConnection(closestIPportNumStr); */
 
+        // Get the IDs in the routing table and sort them
+        ArrayList<Integer> sortedIDs = routingTable.getKeys();
+        Collections.sort(sortedIDs);
+
+        // Store connection to closest node; relay packet to node on other end of this connection
+        TCPConnection routingConnection;
+        int closestID = -1;
+        int largestID = Integer.MIN_VALUE;
+        for (int id : sortedIDs) {
+            if (id > largestID)
+                largestID = id;
+
+            //  Since the IDs are sorted in ascending order, by the end of this loop,
+            //  we will have the largest node ID that is less than the destination ID.
+            //  This prevents us from overshooting the destination
+            if (id < dstID)
+                closestID = id;
+        }
+
+        /*  closestID can only be -1 if there was no ID in the routing table was
+            less than the dstID. In this case, we have a special wrap-around case
+            where the dst must be between two nodes with greater IDs. Therefore,
+            the closest node will be the largest node ID.
+            Ex.) nodes: [0, 21, 31, 36, 42, 81, 90, 102, 116, 117] | src: 102 | dst: 0
+                 Will not find any ID < 0. This means we have wrapped-around and
+                 the closest node to 0 is the largest ID (i.e. 117)  */
+        if (closestID == -1)
+            closestID = largestID;
+
+        if (DEBUG) {
+            if (event instanceof OverlayNodeSendsData) {
+                OverlayNodeSendsData sendsData = (OverlayNodeSendsData)event;
+                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
+                        this.ID, registeredNodeIDs.toString(), sendsData.getSrcID(), sendsData.getDstID(), closestID, sendsData.getRoutingTrace().toString());
+            } else {
+                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
+                        this.ID, registeredNodeIDs.toString(), this.ID, dstID, closestID, (new ArrayList<Integer>()).toString());
+            }
+        }
+
+        String closestIPportNumStr = routingTable.getEntry(closestID);
+        routingConnection = connectionsCache.getConnection(closestIPportNumStr);
         return routingConnection;
     }
 
@@ -266,14 +337,14 @@ public class MessagingNode implements Protocol, Node {
             if (routingTable.contains(dstID)) { // dst is in routing table
                 String IPportNumStr = routingTable.getEntry(dstID);
 
-                if (DEBUG)
+                if (DEBUG && numRounds < 50)
                     System.out.printf("Node (%d) is in my routing table. Sending data to %s\n", dstID, IPportNumStr);
 
                 // Retrieve the connection to the dst node
                 routingConnection = connectionsCache.getConnection(IPportNumStr);
             } else { // dst is not in routing table
                 // find closest node to route data to
-                routingConnection = findClosestNode(dstID);
+                routingConnection = findClosestNode(dstID, event);
             }
 
             // Send packet to the next node with a random int (-2mil to 2mil) as the payload
@@ -284,7 +355,7 @@ public class MessagingNode implements Protocol, Node {
                 Don't need to sync this because only one thread is sending the messages.
                 This is different from the relay counter because only this node's sender thread
                 can send messages, whereas many of this node's receiver threads could be relaying
-                messages at the same time  */
+                messages to different destinations at the same time  */
             ++this.sndTracker;
             this.sndSummation += payload;
 
@@ -293,6 +364,7 @@ public class MessagingNode implements Protocol, Node {
         }
 
         // Done sending messages, so send task finished message to registry
+        System.out.println("Finished sending messages, reporting task finished to Registry...");
         OverlayNodeReportsTaskFinished taskFinished = new OverlayNodeReportsTaskFinished(this.IP, this.portNum, this.ID);
         connection.getSenderThread().addMessage(taskFinished.getBytes());
     }
@@ -319,28 +391,39 @@ public class MessagingNode implements Protocol, Node {
 
             /*  Many receiver threads could be relaying messages from multiple connections at once
                 Only allow one thread at a time to modify the relayTracker  */
-            synchronized(trackersLock) {
+            synchronized (trackersLock) {
                 ++this.relayTracker;
             }
+
+            routingTrace.add(this.ID);
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, srcID, payload, routingTrace);
             routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         } else {
             // dst is not in routing table; choose closest node
-            routingConnection = findClosestNode(dstID);
+            routingConnection = findClosestNode(dstID, event);
 
             // don't have to check if this is the src node b/c once a msg gets sent, it should never arrv back at the src
             // and since this is also not the sink for the msg, this node is relaying a msg, so add this ID to the routing trace
             // also update the relayTracker
             routingTrace.add(this.ID);
 
-            synchronized(trackersLock) {
+            /*if (DEBUG) {
+                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting Trace: %s\n\n",
+                                    this.ID, registeredNodeIDs.toString(), event.getSrcID(), event.getDstID(), event.getRoutingTrace().toString());
+            }*/
+            synchronized (trackersLock) {
                 ++this.relayTracker;
             }
 
             OverlayNodeSendsData nodeSendsData = new OverlayNodeSendsData(dstID, srcID, payload, routingTrace);
             routingConnection.getSenderThread().addMessage(nodeSendsData.getBytes());
         }
+    }
+
+    private void processTrafficSummary(TCPConnection connection) throws IOException {
+        OverlayNodeReportsTrafficSummary trafficSummary = new OverlayNodeReportsTrafficSummary(this.ID, this.sndTracker, this.relayTracker, this.sndSummation, this.rcvTracker, this.rcvSummation);
+        connection.getSenderThread().addMessage(trafficSummary.getBytes());
     }
 
     public static void main(String[] args) {
@@ -418,6 +501,8 @@ public class MessagingNode implements Protocol, Node {
                         case ("exit-overlay"):
                             commandParser.exitOverlay();
                             break;
+                        case ("debug"): // TODO: GET RID OF THIS LATER?
+                            commandParser.printMsgQueueSize();
                         default:
                             System.out.println("Please enter a valid command listed above");
                     }
