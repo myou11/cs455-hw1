@@ -50,7 +50,9 @@ public class TCPSenderThread implements Runnable {
     }
 
     public synchronized void run() {
-        System.out.println("Starting TCPSenderThread...");
+        if (DEBUG)
+            System.out.println("Starting TCPSenderThread...");
+
         try {
             while(true) {
                 if (msgQueue.isEmpty()) {
@@ -60,11 +62,13 @@ public class TCPSenderThread implements Runnable {
                     } catch (InterruptedException ie) {
                         // do nothing if interrupted
                     }
-                }
-                sendData(msgQueue.get(0));
+                } else {
+                    sendData(msgQueue.get(0));
+                    notifyAll();
 
-                if (DEBUG)
-                    System.out.println("Sending msg");
+                    if (DEBUG)
+                        System.out.println("Sending msg");
+                }
             }
         }
         catch (IOException e) {
