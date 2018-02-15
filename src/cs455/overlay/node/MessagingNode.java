@@ -44,7 +44,6 @@ public class MessagingNode implements Protocol, Node {
 
     public int getID() {
         return ID;
-
     }
 
     public String getIP() {
@@ -85,6 +84,14 @@ public class MessagingNode implements Protocol, Node {
 
     public long getRcvSummation() {
         return rcvSummation;
+    }
+
+    private void resetCounters() {
+        this.sndTracker = 0;
+        this.rcvTracker = 0;
+        this.relayTracker = 0;
+        this.sndSummation = 0;
+        this.rcvSummation = 0;
     }
 
     @Override
@@ -419,6 +426,7 @@ public class MessagingNode implements Protocol, Node {
 
     private void processTrafficSummary(TCPConnection connection) throws IOException {
         OverlayNodeReportsTrafficSummary trafficSummary = new OverlayNodeReportsTrafficSummary(this.ID, this.sndTracker, this.relayTracker, this.sndSummation, this.rcvTracker, this.rcvSummation);
+        resetCounters();
         connection.getSenderThread().addMessage(trafficSummary.getBytes());
     }
 

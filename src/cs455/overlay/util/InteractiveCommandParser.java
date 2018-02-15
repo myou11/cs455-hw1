@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public class InteractiveCommandParser {
-    private boolean DEBUG = true;
+    private boolean DEBUG = false;
 
     // node allows the command parser to know whether it is parsing commands for the registry or the msging node
     private Node node;
@@ -52,9 +52,15 @@ public class InteractiveCommandParser {
 
     // setup-overlay number-of-routing-table-entries (e.g. setup-overlay 3)
     public void setupOverlay(int routingTableSize) {
+        Registry registry = (Registry) node;
+
+        if (registry.getNumNodesRegistered() == 0) {
+            System.out.println("Cannot setup overlay with 0 nodes. Please register some nodes");
+            return;
+        }
+
         overlayWasSetup = true;
 
-        Registry registry = (Registry) node;
 
         /*  Routing of msgs will deal only with the nodes that are registered at the
             time of setup-overlay being called  */
@@ -64,7 +70,6 @@ public class InteractiveCommandParser {
         // Transfer the entries from the HashMap into an ArrayList for faster iteration
         ArrayList<Map.Entry<Integer, String>> registeredNodesList = new ArrayList<>(registry.getRegisteredNodes().entrySet());
 
-        // TODO: CHECK PIAZZA FOR HOW TO HANDLE CASE WHERE NODE COULD BE INCLUDED IN ITS OWN ROUTING TABLE
         // TLDR: If routingTableSize >  2 * Nr, it will work
         //       If routingTableSize <= 2 * Nr, it could end up in its own routing tbl, report an error to user? you decide how to handle
         for (int nodeIndex = 0; nodeIndex < registeredNodesList.size(); ++nodeIndex) {
@@ -109,7 +114,9 @@ public class InteractiveCommandParser {
             System.out.println("No routing tables because the overlay has not been setup yet. Please run setup-overlay first");
             return;
         }
-        System.out.printf("Executing list-routing-tables...\n");
+
+        if (DEBUG)
+            System.out.printf("Executing list-routing-tables...\n");
 
         Registry registry = (Registry) node;
         System.out.println("Routing Tables:\n");
@@ -128,7 +135,9 @@ public class InteractiveCommandParser {
             System.out.println("Overlay has not been setup yet. Please run setup-overlay first");
             return;
         }
-        System.out.printf("Executing start %d...\n", numMessages);
+
+        if (DEBUG)
+            System.out.printf("Executing start %d...\n", numMessages);
 
         Registry registry = (Registry) node;
 
@@ -155,7 +164,8 @@ public class InteractiveCommandParser {
     // print-counters-and-diagnostics
     // Info about the counters and trackers of a msging node
     public void printCountersAndDiagnostics() {
-        System.out.printf("Executing print-counters-and-diagnostics...\n");
+        if (DEBUG)
+            System.out.printf("Executing print-counters-and-diagnostics...\n");
 
         MessagingNode msgNode = (MessagingNode) node;
 
@@ -174,7 +184,8 @@ public class InteractiveCommandParser {
 
     // exit-overlay
     public void exitOverlay() {
-        System.out.printf("Executing exit-overlay...\n");
+        if (DEBUG)
+            System.out.printf("Executing exit-overlay...\n");
 
         MessagingNode msgNode = ((MessagingNode) node);
         OverlayNodeSendsDeregistration nodeDeregistration = new OverlayNodeSendsDeregistration(msgNode.getIP(), msgNode.getPortNum(), msgNode.getID());

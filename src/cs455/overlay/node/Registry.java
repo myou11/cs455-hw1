@@ -5,6 +5,7 @@ import cs455.overlay.transport.TCPConnection;
 import cs455.overlay.transport.TCPConnectionsCache;
 import cs455.overlay.transport.TCPServerThread;
 import cs455.overlay.util.InteractiveCommandParser;
+import cs455.overlay.util.StatisticsCollectorAndDisplay;
 import cs455.overlay.wireformats.*;
 
 import java.io.IOException;
@@ -34,11 +35,8 @@ public class Registry implements Protocol, Node {
 
     // Counters for the traffic summaries nodes will send back
     private int numTrafficSummariesRcvd = 0;
-    private int packetsSnt = 0;
-    private int packetsRcvd = 0;
-    private int packetsRelayed = 0;
-    private long packetsSntSummation = 0;
-    private long packetsRcvdSummation = 0;
+
+    private StatisticsCollectorAndDisplay statCollector = new StatisticsCollectorAndDisplay();
 
     public Registry(int portNum, ServerSocket serverSocket) {
         this.portNum = portNum;
@@ -120,6 +118,8 @@ public class Registry implements Protocol, Node {
         String infoStr;
 
         if (validRegistration(event.getIP(), event.getPortNum(), connection)) {
+            ++this.numNodesRegistered;
+
             // register the msging node
             registeredNodes.put(ID, IPportNumStr);
 
@@ -163,8 +163,12 @@ public class Registry implements Protocol, Node {
             String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
             connectionsCache.removeConnection(IPportNumStr);
 
+            // Keep track of the number of nodes registered for the routing packet runs
+            // Useful for commands to know how many nodes are registered at time of overlay setup
+            --this.numNodesRegistered;
+
             System.out.printf("Removed node with ID [%d] and IP:port [%s] from registeredNodes\n" +
-                    "Removed its entry in the routing table list as well:\n", idToRemove, removedIPportNumStr, removedTable);
+                    "Removed its entry in the routing table list as well:\n%s", idToRemove, removedIPportNumStr, removedTable);
 
             infoStr = "Deregistration request successful. The number of messaging nodes currently constituting " +
                     "the overlay is (" + registeredNodes.size() + ")";
@@ -179,8 +183,6 @@ public class Registry implements Protocol, Node {
             RegistryReportsDeregistrationStatus deregistrationStatus = new RegistryReportsDeregistrationStatus(idToRemove, infoStr);
             connection.getSenderThread().addMessage(deregistrationStatus.getBytes());
         }
-
-
     }
 
     // Syncd b/c registry could get many responses from the msging nodes at once
@@ -207,9 +209,11 @@ public class Registry implements Protocol, Node {
 
         ++numNodesFinishedSending;
 
+        // TODO: could abstract this into a method allNodesFinishedTask()
+        // compare numNodesRegistered and numNodesFinishedSending
         if (numNodesFinishedSending == numNodesRegistered) {
             System.out.printf("All messaging nodes have finished sending messages...\n" +
-                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n");
+                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n\n");
             try {
                 Thread.sleep(30000);
             } catch (InterruptedException ie) {
@@ -226,38 +230,23 @@ public class Registry implements Protocol, Node {
                 TCPConnection connection = connectionsCache.getConnection(IPportNumStr);
                 connection.getSenderThread().addMessage(trafficSummary.getBytes());
             }
+
+            // Reset so we can request another traffic summary if we want
+            // the nodes to send messages again
+            numNodesFinishedSending = 0;
         }
     }
 
-    private synchronized void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
-        int nodeID = event.getID();
-        int packetsSnt = event.getTotalPacketsSent();
-        int packetsRcvd = event.getTotalPacketsRcvd();
-        int packetsRelayed = event.getTotalPacketsRelayed();
-        long packetsSntSummation = event.getSendSummation();
-        long packetsRcvdSummation = event.getRcvSummation();
-
-        // If this is the first of the traffic summaries, print the table header
-        if (numTrafficSummariesRcvd == 0)
-            System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
-
-        System.out.printf("Node %d\t| %d\t| %d\t| %d\t| %d\t| %d\n",
-                            nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
-
-        this.packetsSnt += packetsSnt;
-        this.packetsRcvd += packetsRcvd;
-        this.packetsRelayed += packetsRelayed;
-        this.packetsSntSummation += packetsSntSummation;
-        this.packetsRcvdSummation += packetsRcvdSummation;
-
+    private void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
+        statCollector.addTrafficSummary(event);
         ++numTrafficSummariesRcvd;
 
         if (numTrafficSummariesRcvd == numNodesRegistered) {
-            System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
-                              this.packetsSnt, this.packetsRcvd, this.packetsRelayed,
-                              this.packetsSntSummation, this.packetsRcvdSummation);
-        }
+            statCollector.printTrafficSummary();
 
+            // reset this so we can print the correct traffic summaries for successive runs
+            numTrafficSummariesRcvd = 0;
+        }
     }
 
     private void processCommand(String[] command, InteractiveCommandParser commandParser) {
