@@ -52,9 +52,15 @@ public class InteractiveCommandParser {
 
     // setup-overlay number-of-routing-table-entries (e.g. setup-overlay 3)
     public void setupOverlay(int routingTableSize) {
+        Registry registry = (Registry) node;
+
+        if (registry.getNumNodesRegistered() == 0) {
+            System.out.println("Cannot setup overlay with 0 nodes. Please register some nodes");
+            return;
+        }
+
         overlayWasSetup = true;
 
-        Registry registry = (Registry) node;
 
         /*  Routing of msgs will deal only with the nodes that are registered at the
             time of setup-overlay being called  */

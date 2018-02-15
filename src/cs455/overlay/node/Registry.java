@@ -120,6 +120,8 @@ public class Registry implements Protocol, Node {
         String infoStr;
 
         if (validRegistration(event.getIP(), event.getPortNum(), connection)) {
+            ++this.numNodesRegistered;
+
             // register the msging node
             registeredNodes.put(ID, IPportNumStr);
 
@@ -163,8 +165,12 @@ public class Registry implements Protocol, Node {
             String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
             connectionsCache.removeConnection(IPportNumStr);
 
+            // Keep track of the number of nodes registered for the routing packet runs
+            // Useful for commands to know how many nodes are registered at time of overlay setup
+            --this.numNodesRegistered;
+
             System.out.printf("Removed node with ID [%d] and IP:port [%s] from registeredNodes\n" +
-                    "Removed its entry in the routing table list as well:\n", idToRemove, removedIPportNumStr, removedTable);
+                    "Removed its entry in the routing table list as well:\n%s", idToRemove, removedIPportNumStr, removedTable);
 
             infoStr = "Deregistration request successful. The number of messaging nodes currently constituting " +
                     "the overlay is (" + registeredNodes.size() + ")";
@@ -207,6 +213,8 @@ public class Registry implements Protocol, Node {
 
         ++numNodesFinishedSending;
 
+        // TODO: could abstract this into a method allNodesFinishedTask()
+        // compare numNodesRegistered and numNodesFinishedSending
         if (numNodesFinishedSending == numNodesRegistered) {
             System.out.printf("All messaging nodes have finished sending messages...\n" +
                     "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n");
@@ -227,9 +235,19 @@ public class Registry implements Protocol, Node {
                 connection.getSenderThread().addMessage(trafficSummary.getBytes());
             }
 
-            // reset for future runs
+            // Reset so we can request another traffic summary if we want
+            // the nodes to send messages again
             numNodesFinishedSending = 0;
         }
+    }
+
+    private void resetCounters() {
+        this.numTrafficSummariesRcvd = 0;
+        this.packetsSnt = 0;
+        this.packetsRcvd = 0;
+        this.packetsRelayed = 0;
+        this.packetsSntSummation = 0;
+        this.packetsRcvdSummation = 0;
     }
 
     private synchronized void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
@@ -243,13 +261,13 @@ public class Registry implements Protocol, Node {
         // If this is the first of the traffic summaries, print the table header
         if (numTrafficSummariesRcvd == 0) {
             //System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
-            System.out.printf ("%-40s %-20s %-20s %-20s %-20s\n", "Packets Sent", "Packets Received", "Packets Relayed", "Sum Values Sent", "Sum Values Received");
+            System.out.printf ("%-20s %-20s %-20s %-20s %-20s %-20s\n", "Node", "Packets Sent", "Packets Received", "Packets Relayed", "Sum Values Sent", "Sum Values Received");
         }
 
         //System.out.printf("Node %d\t\t| %d\t| %d\t| %d\t| %d\t| %d\n",
         //                    nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
-        String nodeIDStr = "Node" + nodeID;
-        System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", "Node", nodeID,
+        String nodeIDStr = "Node " + nodeID;
+        System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", nodeIDStr,
                 packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
 
         this.packetsSnt += packetsSnt;
@@ -260,17 +278,18 @@ public class Registry implements Protocol, Node {
 
         ++numTrafficSummariesRcvd;
 
+        // TODO: could abstract this into a method allNodeSummariesRcvd()
+        // compare numNodesRegistered and numNodesFinishedSending
         if (numTrafficSummariesRcvd == numNodesRegistered) {
             /*System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
                               this.packetsSnt, this.packetsRcvd, this.packetsRelayed,
                               this.packetsSntSummation, this.packetsRcvdSummation);*/
             System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", "Sum",
                     this.packetsSnt, this.packetsRcvd, this.packetsRelayed, this.packetsSntSummation, this.packetsRcvdSummation);
-        }
 
-        // reset for future runs
-        if (numTrafficSummariesRcvd == numNodesRegistered)
-            numTrafficSummariesRcvd = 0;
+            // Reset counters for subsequent runs
+            resetCounters();
+        }
     }
 
     private void processCommand(String[] command, InteractiveCommandParser commandParser) {
