@@ -5,6 +5,7 @@ import cs455.overlay.transport.TCPConnection;
 import cs455.overlay.transport.TCPConnectionsCache;
 import cs455.overlay.transport.TCPServerThread;
 import cs455.overlay.util.InteractiveCommandParser;
+import cs455.overlay.util.StatisticsCollectorAndDisplay;
 import cs455.overlay.wireformats.*;
 
 import java.io.IOException;
@@ -34,11 +35,8 @@ public class Registry implements Protocol, Node {
 
     // Counters for the traffic summaries nodes will send back
     private int numTrafficSummariesRcvd = 0;
-    private int packetsSnt = 0;
-    private int packetsRcvd = 0;
-    private int packetsRelayed = 0;
-    private long packetsSntSummation = 0;
-    private long packetsRcvdSummation = 0;
+
+    private StatisticsCollectorAndDisplay statCollector = new StatisticsCollectorAndDisplay();
 
     public Registry(int portNum, ServerSocket serverSocket) {
         this.portNum = portNum;
@@ -185,8 +183,6 @@ public class Registry implements Protocol, Node {
             RegistryReportsDeregistrationStatus deregistrationStatus = new RegistryReportsDeregistrationStatus(idToRemove, infoStr);
             connection.getSenderThread().addMessage(deregistrationStatus.getBytes());
         }
-
-
     }
 
     // Syncd b/c registry could get many responses from the msging nodes at once
@@ -217,7 +213,7 @@ public class Registry implements Protocol, Node {
         // compare numNodesRegistered and numNodesFinishedSending
         if (numNodesFinishedSending == numNodesRegistered) {
             System.out.printf("All messaging nodes have finished sending messages...\n" +
-                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n");
+                    "Waiting 30 seconds before retrieving traffic summaries from messaging nodes...\n\n");
             try {
                 Thread.sleep(30000);
             } catch (InterruptedException ie) {
@@ -241,54 +237,15 @@ public class Registry implements Protocol, Node {
         }
     }
 
-    private void resetCounters() {
-        this.numTrafficSummariesRcvd = 0;
-        this.packetsSnt = 0;
-        this.packetsRcvd = 0;
-        this.packetsRelayed = 0;
-        this.packetsSntSummation = 0;
-        this.packetsRcvdSummation = 0;
-    }
-
-    private synchronized void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
-        int nodeID = event.getID();
-        int packetsSnt = event.getTotalPacketsSent();
-        int packetsRcvd = event.getTotalPacketsRcvd();
-        int packetsRelayed = event.getTotalPacketsRelayed();
-        long packetsSntSummation = event.getSendSummation();
-        long packetsRcvdSummation = event.getRcvSummation();
-
-        // If this is the first of the traffic summaries, print the table header
-        if (numTrafficSummariesRcvd == 0) {
-            //System.out.printf("\t| Packets Sent\t| Packets Received\t| Packets Relayed\t| Sum Values Sent\t| Sum Values Received\n");
-            System.out.printf ("%-20s %-20s %-20s %-20s %-20s %-20s\n", "Node", "Packets Sent", "Packets Received", "Packets Relayed", "Sum Values Sent", "Sum Values Received");
-        }
-
-        //System.out.printf("Node %d\t\t| %d\t| %d\t| %d\t| %d\t| %d\n",
-        //                    nodeID, packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
-        String nodeIDStr = "Node " + nodeID;
-        System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", nodeIDStr,
-                packetsSnt, packetsRcvd, packetsRelayed, packetsSntSummation, packetsRcvdSummation);
-
-        this.packetsSnt += packetsSnt;
-        this.packetsRcvd += packetsRcvd;
-        this.packetsRelayed += packetsRelayed;
-        this.packetsSntSummation += packetsSntSummation;
-        this.packetsRcvdSummation += packetsRcvdSummation;
-
+    private void processTrafficSummary(OverlayNodeReportsTrafficSummary event) {
+        statCollector.addTrafficSummary(event);
         ++numTrafficSummariesRcvd;
 
-        // TODO: could abstract this into a method allNodeSummariesRcvd()
-        // compare numNodesRegistered and numNodesFinishedSending
         if (numTrafficSummariesRcvd == numNodesRegistered) {
-            /*System.out.printf("Sum\t| %d\t|%d \t|%d \t|%d \t|%d \n",
-                              this.packetsSnt, this.packetsRcvd, this.packetsRelayed,
-                              this.packetsSntSummation, this.packetsRcvdSummation);*/
-            System.out.printf ("%-20s %-20d %-20d %-20d %-20d %-20d\n", "Sum",
-                    this.packetsSnt, this.packetsRcvd, this.packetsRelayed, this.packetsSntSummation, this.packetsRcvdSummation);
+            statCollector.printTrafficSummary();
 
-            // Reset counters for subsequent runs
-            resetCounters();
+            // reset this so we can print the correct traffic summaries for successive runs
+            numTrafficSummariesRcvd = 0;
         }
     }
 
