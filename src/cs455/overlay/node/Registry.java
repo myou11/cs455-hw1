@@ -163,10 +163,6 @@ public class Registry implements Protocol, Node {
             String IPportNumStr = connectionSocket.getInetAddress().getHostAddress() + ':' + connectionSocket.getPort();
             connectionsCache.removeConnection(IPportNumStr);
 
-            // Keep track of the number of nodes registered for the routing packet runs
-            // Useful for commands to know how many nodes are registered at time of overlay setup
-            --this.numNodesRegistered;
-
             System.out.printf("Removed node with ID [%d] and IP:port [%s] from registeredNodes\n" +
                     "Removed its entry in the routing table list as well:\n%s", idToRemove, removedIPportNumStr, removedTable);
 

@@ -229,59 +229,6 @@ public class MessagingNode implements Protocol, Node {
         ID that is less than the destination ID, and that is the closest node.
         Special case for when no IDs less than destination ID are found. See comments below.  */
     private TCPConnection findClosestNode(int dstID, Event event) {
-        /*String closestIPportNumStr;
-        if (routingTable.contains(dstID)) {
-            closestIPportNumStr = routingTable.getEntry(dstID);
-            return connectionsCache.getConnection(closestIPportNumStr);
-        }
-        int currNodeID = this.ID;
-        int currRoutingID;
-        int closestID = -1;
-        for (Map.Entry<Integer, String> entry : routingTable.getEntrySet()) {
-            currRoutingID = entry.getKey();
-
-            // Overshot and wrapped around the ID space
-            /*  This means this entry can't be a possible relay since
-                the closestID must be between the currNodeID and
-                dstID. Therefore, currRoutingID cannot be < currNodeID  *
-            if (currNodeID < dstID && currRoutingID < currNodeID)
-                break;
-
-            // currID < dst ID && this condition
-            // on the right path to finding the closest node,
-            // will get the largest ID less than the dst ID
-            if (currRoutingID < dstID)
-                closestID = currRoutingID;
-
-            /*  Case when the currNodeID is already greater than the sink
-                As long as the currRoutingID is also greater than the currNodeID,
-                then it is a valid ID between the currNodeID and dstID.
-                Basically finds the largest routingID to send packet to
-             *
-            else if (currNodeID > dstID && currRoutingID > currNodeID)
-                closestID = currRoutingID;
-        }
-
-        // If closest ID is not assigned after loop, then routing algorithm is wrong
-        if (closestID == -1) {
-            System.out.println("Something went wrong with the routing algorithm...");
-            System.exit(1);
-        }
-
-        if (DEBUG) {
-            if (event instanceof OverlayNodeSendsData) {
-                OverlayNodeSendsData sendsData = (OverlayNodeSendsData)event;
-                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
-                        this.ID, registeredNodeIDs.toString(), sendsData.getSrcID(), sendsData.getDstID(), closestID, sendsData.getRoutingTrace().toString());
-            } else {
-                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting to: %d\nRouting Trace: %s\n\n",
-                        this.ID, registeredNodeIDs.toString(), this.ID, dstID, closestID, (new ArrayList<Integer>()).toString());
-            }
-        }
-
-        closestIPportNumStr = routingTable.getEntry(closestID);
-        return connectionsCache.getConnection(closestIPportNumStr); */
-
         // Get the IDs in the routing table and sort them
         ArrayList<Integer> sortedIDs = routingTable.getKeys();
         Collections.sort(sortedIDs);
@@ -411,10 +358,6 @@ public class MessagingNode implements Protocol, Node {
             // also update the relayTracker
             routingTrace.add(this.ID);
 
-            /*if (DEBUG) {
-                System.out.printf("My ID: %d\nList of all nodes: %s\nSrc: %d\nDst: %d\nRouting Trace: %s\n\n",
-                                    this.ID, registeredNodeIDs.toString(), event.getSrcID(), event.getDstID(), event.getRoutingTrace().toString());
-            }*/
             synchronized (trackersLock) {
                 ++this.relayTracker;
             }
