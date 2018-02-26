@@ -6,12 +6,16 @@
 
 ## Program Overview
 
-MessagingNodes will connect to a Registry which will send routing information to each MessagingNode in the system.
+MessagingNodes, from multiple machines, will connect to a Registry which will send routing information to 
+each MessagingNode in the system.
 The Registry informs each node to send **N<sub>r</sub>** messages to every other node in the system.
 The MessagingNodes will use their routing information to make decisions about where to forward packets.
-After all nodes have finished sending messages, the Registry will request statistics from the MessagingNodes.
+After all nodes have finished sending messages, the Registry will request diagnostics from the MessagingNodes.
 The Registry will present this information in an organized table to allow the user to assess the program's 
 correctness in forwarding packets.
+
+I have tested this program with 25 MessagingNodes each sending 250,000 messages and the collective diagnostics 
+from all of the MessagingNodes confirm the program forwarded the packets correctly.
 
 
 ## File Descriptions (by grouping):
